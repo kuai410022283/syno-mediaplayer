@@ -1,9 +1,7 @@
 {
-    ".url": {
-        "type": "url",
+    "SYNO.SDS.AppWindow": {
         "title": "MediaPlayer",
-        "desc": "MediaPlayer 智能电视流媒体中心",
-        "icon": "images/PACKAGE_ICON_256.PNG",
-        "url": "http://__INSTIP__:__INSTPORT__/"
+        "type": "url",
+        "url": "http://${hostname}:9527"
     }
 }

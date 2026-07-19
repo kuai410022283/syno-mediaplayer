@@ -1,5 +1,23 @@
 {
-    "port-config": {
-        "protocol-file": "resource/mmediaplayer.sc"
+    "webservice": {
+        "portals": [
+            {
+                "alias": "MediaPlayer",
+                "app": "com.synocommunity.mediaplayer",
+                "name": "MediaPlayer",
+                "service": "MediaPlayer",
+                "type": "server",
+                "http_port": [9527]
+            }
+        ],
+        "services": [
+            {
+                "display_name": "MediaPlayer",
+                "service": "MediaPlayer",
+                "support_alias": true,
+                "support_server": true,
+                "type": "custom"
+            }
+        ]
     }
 }
