@@ -23,15 +23,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - syno_arch: x86_64
+          # x86_64 platforms: apollolake, geminilake, broadwell, braswell, etc.
+          - spk_arch: apollolake
             go_arch: amd64
-            spk_arch: x86_64
-          - syno_arch: aarch64
+            arch_family: x86_64
+          # arm64 platforms: rtd1296, rtd1619, armada37xx
+          - spk_arch: rtd1296
             go_arch: arm64
-            spk_arch: aarch64
-          - syno_arch: armv7l
+            arch_family: aarch64
+          # armv7 platforms: alpine, alpine4k
+          - spk_arch: alpine
             go_arch: arm-armv7l
-            spk_arch: armv7l
+            arch_family: armv7l
 
     steps:
       - name: Checkout syno-mediaplayer
@@ -98,10 +101,10 @@ jobs:
           rm -rf "${BUILD_DIR}"
           mkdir -p "${BUILD_DIR}"
 
-          # Copy INFO with version substituted
-          sed "s/{{VERSION}}/${SPK_VERSION}/g" package/INFO > "${BUILD_DIR}/INFO"
-          # Add architecture
-          echo "arch=\"${SYNO_ARCH}\"" >> "${BUILD_DIR}/INFO"
+          # Copy INFO with version and architecture substituted
+          sed -e "s/{{VERSION}}/${SPK_VERSION}/g" \
+              -e "s/arch=\"\"/arch=\"${SYNO_ARCH}\"/g" \
+              package/INFO > "${BUILD_DIR}/INFO"
 
           # Copy icons
           cp package/PACKAGE_ICON.PNG "${BUILD_DIR}/"
@@ -159,7 +162,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.spk_arch }}-spk
+          name: ${{ matrix.arch_family }}-spk
           path: |
             ${{ steps.build_spk.outputs.spk_path }}
             ${{ steps.build_spk.outputs.spk_path }}.sha256
@@ -202,9 +205,9 @@ jobs:
             ### Supported Architectures
             | Architecture | File | Synology Models |
             |---|---|---|
-            | x86_64 | `MediaPlayer-x86_64-*.spk` | DS920+, DS1522+, DS720+, etc. |
-            | aarch64 | `MediaPlayer-aarch64-*.spk` | DS220+, DS723+, RS822+, etc. |
-            | armv7l | `MediaPlayer-armv7l-*.spk` | Older ARM models |
+            | x86_64 (apollolake) | `MediaPlayer-apollolake-*.spk` | DS920+, DS1522+, DS720+, DS923+, etc. |
+            | aarch64 (rtd1296) | `MediaPlayer-rtd1296-*.spk` | DS220+, DS723+, RS822+, etc. |
+            | armv7l (alpine) | `MediaPlayer-alpine-*.spk` | Older ARM models (DS216, etc.) |
 
             ### Installation
             1. Download the SPK for your NAS architecture

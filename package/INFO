@@ -1,5 +1,5 @@
 package="MediaPlayer"
-version="{{VERSION}}"
+version="{{VERSION}}-0001"
 os_min_ver="7.0-40000"
 displayname="MediaPlayer"
 description="MediaPlayer 智能电视流媒体中心 - 专为 Android TV 与机顶盒打造的专业级私有化 IPTV 服务端"
