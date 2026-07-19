@@ -77,10 +77,8 @@ jobs:
             -H "Accept: application/vnd.github.v3.raw" \
             "https://api.github.com/repos/Brian099/fn_fpk_packages/git/blobs/${ICON_SHA}" \
             -o package/PACKAGE_ICON_256.PNG
-          # DSM 7.0+ requires 64x64 for PACKAGE_ICON.PNG
-          # Use imagemagick to resize
-          sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick > /dev/null 2>&1
-          convert package/PACKAGE_ICON_256.PNG -resize 64x64 package/PACKAGE_ICON.PNG
+          # DSM will auto-resize, use same image for both
+          cp package/PACKAGE_ICON_256.PNG package/PACKAGE_ICON.PNG
 
       - name: Build SPK (official structure)
         id: build_spk
@@ -151,26 +149,13 @@ jobs:
           # ========================================
           # Step 3: Create SPK (tar without ./ prefix)
           # ========================================
-          # This is critical: DSM requires root-level paths (INFO, not ./INFO)
-          # Using -C to change directory, then list files explicitly
+          # CRITICAL: DSM requires root-level paths (INFO, not ./INFO)
           cd "${SPK_DIR}"
-          tar cf "/tmp/${SPK_NAME}" \
-            INFO \
-            package.tgz \
-            PACKAGE_ICON.PNG \
-            PACKAGE_ICON_256.PNG \
-            scripts \
-            conf \
-            WIZARD_UIFILES \
-            2>/dev/null || \
-          tar cf "/tmp/${SPK_NAME}" \
-            INFO \
-            package.tgz \
-            PACKAGE_ICON.PNG \
-            PACKAGE_ICON_256.PNG \
-            scripts \
-            conf \
-            2>/dev/null
+          # List all files to include
+          FILES_TO_PACK="INFO package.tgz PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG scripts conf"
+          [ -d WIZARD_UIFILES ] && FILES_TO_PACK="${FILES_TO_PACK} WIZARD_UIFILES"
+          [ -f LICENSE ] && FILES_TO_PACK="${FILES_TO_PACK} LICENSE"
+          tar cf "/tmp/${SPK_NAME}" ${FILES_TO_PACK}
           cd -
 
           # Verify: check paths don't have ./ prefix
