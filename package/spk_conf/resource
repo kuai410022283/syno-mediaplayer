@@ -1,4 +1,7 @@
 {
+    "port-config": {
+        "protocol-file": "resource/MediaPlayer.sc"
+    },
     "webservice": {
         "portals": [
             {

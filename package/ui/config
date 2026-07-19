@@ -2,6 +2,6 @@
     "SYNO.SDS.AppWindow": {
         "title": "MediaPlayer",
         "type": "url",
-        "url": "http://${hostname}:9527"
+        "url": "/webman/3rdparty/MediaPlayer/index.html"
     }
 }

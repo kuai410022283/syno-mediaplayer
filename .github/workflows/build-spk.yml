@@ -109,7 +109,7 @@ jobs:
 
           # Copy resource files (port config)
           mkdir -p "${PKG_TGZ_DIR}/resource"
-          cp package/resource/mmediaplayer.sc "${PKG_TGZ_DIR}/resource/"
+          cp package/resource/MediaPlayer.sc "${PKG_TGZ_DIR}/resource/"
 
           # Create package.tgz
           cd "${PKG_TGZ_DIR}"
