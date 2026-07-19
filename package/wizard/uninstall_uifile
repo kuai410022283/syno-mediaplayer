@@ -1,26 +1,14 @@
 [
     {
-        "step_title": {
-            "chs": "MediaPlayer 卸载确认",
-            "cht": "MediaPlayer 卸載確認",
-            "eng": "MediaPlayer Uninstall Confirmation"
-        },
+        "step_title": "MediaPlayer 卸载",
         "items": [
             {
                 "type": "singleselect",
-                "desc": {
-                    "chs": "是否保留数据目录？",
-                    "cht": "是否保留數據目錄？",
-                    "eng": "Keep data directory?"
-                },
+                "desc": "是否保留数据目录？",
                 "subitems": [
                     {
                         "key": "keep_data",
-                        "desc": {
-                            "chs": "保留数据（数据库、配置、缓存）",
-                            "cht": "保留數據（數據庫、配置、緩存）",
-                            "eng": "Keep data (database, config, cache)"
-                        },
+                        "desc": "保留数据（数据库、配置、缓存）",
                         "defaultValue": true
                     }
                 ]

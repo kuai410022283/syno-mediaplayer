@@ -1,36 +1,20 @@
 [
     {
-        "step_title": {
-            "chs": "MediaPlayer 安装配置",
-            "cht": "MediaPlayer 安裝配置",
-            "eng": "MediaPlayer Installation Setup"
-        },
+        "step_title": "MediaPlayer 安装配置",
         "items": [
             {
                 "type": "textfield",
-                "desc": {
-                    "chs": "服务端口",
-                    "cht": "服務端口",
-                    "eng": "Service Port"
-                },
+                "desc": "Web 管理面板端口",
                 "subitems": [
                     {
                         "key": "server_port",
-                        "desc": {
-                            "chs": "Web 管理面板端口",
-                            "cht": "Web 管理面板端口",
-                            "eng": "Web Admin Panel Port"
-                        },
+                        "desc": "服务端口",
                         "defaultValue": "9527",
                         "validator": {
                             "allowBlank": false,
                             "regex": {
                                 "expr": "/^[1-9]\d{0,4}$/",
-                                "error": {
-                                    "chs": "请输入 1-65535 的端口号",
-                                    "cht": "請輸入 1-65535 的端口號",
-                                    "eng": "Please enter a port number between 1-65535"
-                                }
+                                "error": "端口范围 1-65535"
                             }
                         }
                     }
@@ -38,42 +22,12 @@
             },
             {
                 "type": "textfield",
-                "desc": {
-                    "chs": "管理员密码",
-                    "cht": "管理員密碼",
-                    "eng": "Admin Password"
-                },
+                "desc": "管理员密码（安装后可修改配置文件）",
                 "subitems": [
                     {
                         "key": "admin_password",
-                        "desc": {
-                            "chs": "Web 管理面板密码",
-                            "cht": "Web 管理面板密碼",
-                            "eng": "Web Admin Panel Password"
-                        },
+                        "desc": "密码",
                         "defaultValue": "admin123",
-                        "validator": {
-                            "allowBlank": false
-                        }
-                    }
-                ]
-            },
-            {
-                "type": "textfield",
-                "desc": {
-                    "chs": "数据存储路径",
-                    "cht": "數據存儲路徑",
-                    "eng": "Data Storage Path"
-                },
-                "subitems": [
-                    {
-                        "key": "data_path",
-                        "desc": {
-                            "chs": "数据库和缓存目录",
-                            "cht": "數據庫和緩存目錄",
-                            "eng": "Database and Cache Directory"
-                        },
-                        "defaultValue": "/var/packages/MediaPlayer/target/var",
                         "validator": {
                             "allowBlank": false
                         }
