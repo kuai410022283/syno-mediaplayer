@@ -11,18 +11,14 @@
                         "desc": "服务端口",
                         "defaultValue": "9527",
                         "validator": {
-                            "allowBlank": false,
-                            "regex": {
-                                "expr": "/^[1-9]\d{0,4}$/",
-                                "error": "端口范围 1-65535"
-                            }
+                            "allowBlank": false
                         }
                     }
                 ]
             },
             {
                 "type": "textfield",
-                "desc": "管理员密码（安装后可修改配置文件）",
+                "desc": "管理员密码",
                 "subitems": [
                     {
                         "key": "admin_password",
