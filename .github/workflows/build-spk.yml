@@ -47,7 +47,7 @@ jobs:
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Download mediaplayer binary
+      - name: Download mediaplayer release
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           GO_ARCH="${{ matrix.go_arch }}"
@@ -57,18 +57,17 @@ jobs:
           echo "Downloading: ${DOWNLOAD_URL}"
           curl -fSL -o "${FILENAME}" "${DOWNLOAD_URL}"
 
-          mkdir -p extracted
-          tar xzf "${FILENAME}" -C extracted
-
-          BINARY_PATH=$(find extracted -name "mediaplayer" -type f | head -1)
-          if [ -z "${BINARY_PATH}" ]; then
-            echo "::error::mediaplayer binary not found in archive"
-            exit 1
-          fi
-
+          # Extract to src/ - preserves directory structure
           mkdir -p src
-          cp "${BINARY_PATH}" src/mediaplayer
-          chmod +x src/mediaplayer
+          tar xzf "${FILENAME}" -C src --strip-components=1
+
+          # Verify contents
+          echo "=== Release contents ==="
+          ls -la src/
+          echo "=== Web files ==="
+          ls -la src/web/ 2>/dev/null || echo "No web directory"
+          echo "=== Binary ==="
+          ls -la src/mediaplayer
 
       - name: Download icons from fnOS project
         run: |
@@ -77,7 +76,6 @@ jobs:
             -H "Accept: application/vnd.github.v3.raw" \
             "https://api.github.com/repos/Brian099/fn_fpk_packages/git/blobs/${ICON_SHA}" \
             -o package/PACKAGE_ICON_256.PNG
-          # DSM will auto-resize, use same image for both
           cp package/PACKAGE_ICON_256.PNG package/PACKAGE_ICON.PNG
 
       - name: Build SPK (official structure)
@@ -93,23 +91,35 @@ jobs:
           # ========================================
           PKG_TGZ_DIR="/tmp/_package_tgz"
           rm -rf "${PKG_TGZ_DIR}"
-          mkdir -p "${PKG_TGZ_DIR}/bin"
-          mkdir -p "${PKG_TGZ_DIR}/etc"
 
           # Copy binary
+          mkdir -p "${PKG_TGZ_DIR}/bin"
           cp src/mediaplayer "${PKG_TGZ_DIR}/bin/"
           chmod +x "${PKG_TGZ_DIR}/bin/mediaplayer"
 
-          # Copy config template
-          cp package/conf/config.yaml.template "${PKG_TGZ_DIR}/etc/config.yaml.template"
-          cp package/conf/config.yaml.template "${PKG_TGZ_DIR}/etc/config.yaml"
+          # Copy web frontend (from release)
+          if [ -d src/web ]; then
+            cp -r src/web "${PKG_TGZ_DIR}/web"
+            echo "Web files copied:"
+            find "${PKG_TGZ_DIR}/web" -type f | head -10
+          else
+            echo "::warning::No web directory in release"
+          fi
 
-          # Copy UI files (for desktop icon)
+          # Copy config template (from release config.yaml or project template)
+          mkdir -p "${PKG_TGZ_DIR}/etc"
+          if [ -f src/config.yaml ]; then
+            cp src/config.yaml "${PKG_TGZ_DIR}/etc/config.yaml.template"
+            cp src/config.yaml "${PKG_TGZ_DIR}/etc/config.yaml"
+            echo "Config from release"
+          else
+            cp package/conf/config.yaml.template "${PKG_TGZ_DIR}/etc/config.yaml.template"
+            cp package/conf/config.yaml.template "${PKG_TGZ_DIR}/etc/config.yaml"
+            echo "Config from project template"
+          fi
+
+          # Copy UI files (desktop icon config)
           cp -r package/ui "${PKG_TGZ_DIR}/ui"
-
-          # Copy resource files (port config)
-          mkdir -p "${PKG_TGZ_DIR}/resource"
-          cp package/resource/MediaPlayer.sc "${PKG_TGZ_DIR}/resource/"
 
           # Create package.tgz
           cd "${PKG_TGZ_DIR}"
@@ -131,9 +141,8 @@ jobs:
           # package.tgz (required)
           cp /tmp/package.tgz "${SPK_DIR}/package.tgz"
 
-          # PACKAGE_ICON.PNG (required, 64x64 for DSM 7.0+)
+          # PACKAGE_ICON.PNG (required)
           cp package/PACKAGE_ICON.PNG "${SPK_DIR}/PACKAGE_ICON.PNG"
-          # PACKAGE_ICON_256.PNG (required)
           cp package/PACKAGE_ICON_256.PNG "${SPK_DIR}/PACKAGE_ICON_256.PNG"
 
           # scripts/ (required)
@@ -143,34 +152,30 @@ jobs:
           # conf/ (required for DSM 7.0+ - must contain privilege)
           mkdir -p "${SPK_DIR}/conf"
           cp package/spk_conf/privilege "${SPK_DIR}/conf/privilege"
-          [ -f package/spk_conf/resource ] && cp package/spk_conf/resource "${SPK_DIR}/conf/resource"
 
-          # WIZARD_UIFILES/ (optional)
+          # WIZARD_UIFILES/
           if [ -d package/wizard ] && [ "$(ls -A package/wizard)" ]; then
             mkdir -p "${SPK_DIR}/WIZARD_UIFILES"
             cp package/wizard/* "${SPK_DIR}/WIZARD_UIFILES/"
           fi
 
-          # LICENSE (optional)
-          [ -f package/LICENSE ] && cp package/LICENSE "${SPK_DIR}/LICENSE"
-
           # ========================================
           # Step 3: Create SPK (tar without ./ prefix)
           # ========================================
-          # CRITICAL: DSM requires root-level paths (INFO, not ./INFO)
           cd "${SPK_DIR}"
-          # List all files to include
           FILES_TO_PACK="INFO package.tgz PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG scripts conf"
           [ -d WIZARD_UIFILES ] && FILES_TO_PACK="${FILES_TO_PACK} WIZARD_UIFILES"
           [ -f LICENSE ] && FILES_TO_PACK="${FILES_TO_PACK} LICENSE"
           tar cf "/tmp/${SPK_NAME}" ${FILES_TO_PACK}
           cd -
 
-          # Verify: check paths don't have ./ prefix
+          # Verify
           echo "=== SPK contents ==="
           tar tf "/tmp/${SPK_NAME}"
-          echo "=== INFO content ==="
+          echo "=== INFO ==="
           tar xf "/tmp/${SPK_NAME}" INFO -O
+          echo "=== package.tgz contents ==="
+          tar xzf "/tmp/${SPK_NAME}" package.tgz -O | tar tz
 
           # Checksum
           sha256sum "/tmp/${SPK_NAME}" > "/tmp/${SPK_NAME}.sha256"

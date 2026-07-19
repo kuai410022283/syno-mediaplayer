@@ -63,7 +63,8 @@ start_process() {
 
     log_msg "Exec: ${DAEMON}"
 
-    cd "${DATA_DIR}"
+    # Run from target dir so binary can find web/ directory
+    cd "${TARGET_DIR}"
 
     export LD_LIBRARY_PATH="${TARGET_DIR}/lib:${LD_LIBRARY_PATH:-}"
 
