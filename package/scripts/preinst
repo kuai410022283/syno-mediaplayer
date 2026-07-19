@@ -2,12 +2,6 @@
 
 # Pre-installation script for MediaPlayer
 
-# Check DSM version (require 7.0+)
-DSM_VER=$(cat /etc.defaults/VERSION 2>/dev/null | grep 'productversion=' | cut -d'"' -f2)
-if [ -z "${DSM_VER}" ]; then
-    echo "Warning: Could not determine DSM version"
-fi
-
 # Check if port 9527 is available
 if command -v ss > /dev/null 2>&1; then
     if ss -tlnp | grep -q ':9527 '; then

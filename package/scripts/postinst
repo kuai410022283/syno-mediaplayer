@@ -1,59 +1,55 @@
 #!/bin/sh
 
 # Post-installation script for MediaPlayer
+# Reference: fnOS mediaplayer install_callback
 
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
 DATA_DIR="${TARGET_DIR}/var"
 
-echo "Post-install: Setting up ${PACKAGE_NAME}..."
+echo "开始安装 MediaPlayer..."
 
-# Create necessary directories
-mkdir -p "${DATA_DIR}"
-mkdir -p "${DATA_DIR}/cache"
+# 1. 设置执行权限
+echo "正在设置权限..."
+chmod +x "${TARGET_DIR}/bin/mediaplayer" 2>/dev/null || true
+chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 
-# Set permissions
-chmod -R 755 "${TARGET_DIR}/bin/"
-chmod -R 755 "${TARGET_DIR}/scripts/"
+# 2. 创建数据目录
+mkdir -p "${DATA_DIR}/data/cache"
 
-# Create default config if not exists
-if [ ! -f "${TARGET_DIR}/etc/config.yaml" ]; then
-    cat > "${TARGET_DIR}/etc/config.yaml" << 'EOF'
-# MediaPlayer 配置文件
-# ⚠️ 部署前必须修改 auth.secret 和 auth.admin_password
+# 3. 处理安装向导的变量并生成 config.yaml
+echo "正在生成配置文件..."
+TEMPLATE_FILE="${TARGET_DIR}/etc/config.yaml.template"
+TARGET_CONFIG="${DATA_DIR}/config.yaml"
 
-server:
-  host: "0.0.0.0"
-  port: 9527
+if [ -f "${TEMPLATE_FILE}" ]; then
+    # 获取向导变量，如未提供则使用默认值
+    PORT="${server_port:-9527}"
+    ADMIN_PWD="${admin_password:-admin123}"
 
-database:
-  path: "/var/packages/MediaPlayer/target/var/mediaplayer.db"
+    # 生成随机 jwt secret
+    SECRET_KEY=$(head -c 64 /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 2>/dev/null)
+    if [ -z "${SECRET_KEY}" ]; then
+        SECRET_KEY="mediaplayer-fallback-secret-key-$(date +%s)"
+    fi
 
-stream:
-  cache_dir: "/var/packages/MediaPlayer/target/var/cache"
-  max_concurrent: 1000
-  buffer_size: 8192
+    # 替换配置
+    sed -e "s|port: 9527|port: ${PORT}|g" \
+        -e "s|admin_password: \"admin123\"|admin_password: \"${ADMIN_PWD}\"|g" \
+        -e "s|secret: \"mediaplayer-change-this-secret-key\"|secret: \"${SECRET_KEY}\"|g" \
+        -e "s|path: \"./data/mediaplayer.db\"|path: \"${DATA_DIR}/data/mediaplayer.db\"|g" \
+        -e "s|cache_dir: \"./data/cache\"|cache_dir: \"${DATA_DIR}/data/cache\"|g" \
+        "${TEMPLATE_FILE}" >"${TARGET_CONFIG}"
 
-auth:
-  # ⚠️ 必须修改！使用随机生成的长字符串
-  secret: "mediaplayer-change-this-secret-key"
-  expire_hours: 720
-  # ⚠️ 必须修改！设置强密码
-  admin_password: "admin123"
-
-cors:
-  allowed_origins:
-    - "*"
-
-rate_limit:
-  api: 1000
-  logo: 1000
-  stream: 2000
-EOF
+    # 记录端口号供启动脚本使用
+    echo "${PORT}" >"${DATA_DIR}/server_port"
+    echo "配置文件生成成功: 端口 ${PORT}"
+else
+    echo "警告：未找到模板文件 ${TEMPLATE_FILE}"
 fi
 
-echo "Post-install complete."
-echo "Access the web panel at: http://<NAS_IP>:9527"
-echo "Default password: admin123 (CHANGE IT!)"
+echo "安装完成！"
+echo "访问 Web 管理面板: http://<NAS_IP>:9527"
+echo "默认密码: ${admin_password:-admin123}"
 
 exit 0

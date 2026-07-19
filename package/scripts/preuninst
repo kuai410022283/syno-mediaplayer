@@ -4,9 +4,7 @@
 
 PACKAGE_NAME="MediaPlayer"
 
-echo "Pre-uninstall: Preparing to remove ${PACKAGE_NAME}..."
-
-# Stop the service if running
+echo "Pre-uninstall: Stopping ${PACKAGE_NAME}..."
 /var/packages/${PACKAGE_NAME}/scripts/start-stop-status stop 2>/dev/null
 
 exit 0

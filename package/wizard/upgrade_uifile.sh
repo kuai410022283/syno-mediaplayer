@@ -1,21 +1,46 @@
 #!/bin/sh
 
 # Upgrade wizard UI file for MediaPlayer
+# Allows user to optionally update port and password during upgrade
 
 cat << 'EOF'
 {
     "step_title": {
-        "chs": "MediaPlayer 升级说明",
-        "cht": "MediaPlayer 升級說明",
-        "eng": "MediaPlayer Upgrade Notes"
+        "chs": "MediaPlayer 升级配置",
+        "cht": "MediaPlayer 升級配置",
+        "eng": "MediaPlayer Upgrade Setup"
     },
     "items": [
         {
-            "desc": {
-                "chs": "MediaPlayer 升级完成！您的配置和数据将被保留。",
-                "cht": "MediaPlayer 升級完成！您的配置和資料將被保留。",
-                "eng": "MediaPlayer upgraded! Your configuration and data are preserved."
+            "type": "tips",
+            "helpText": {
+                "chs": "MediaPlayer 升级中，您的数据将被保留。如需修改配置，请填写下方字段（留空则保持原配置）。",
+                "cht": "MediaPlayer 升級中，您的資料將被保留。如需修改配置，請填寫下方欄位（留空則保持原配置）。",
+                "eng": "Upgrading MediaPlayer. Your data will be preserved. Fill in fields below to change config (leave empty to keep current)."
             }
+        },
+        {
+            "type": "text",
+            "field": "server_port",
+            "label": {
+                "chs": "服务端口（留空保持不变）",
+                "cht": "服務端口（留空保持不變）",
+                "eng": "Service Port (leave empty to keep current)"
+            },
+            "initValue": "",
+            "rules": [
+                { "pattern": "^[0-9]*$", "message": { "chs": "端口必须为数字", "cht": "端口必須為數字", "eng": "Port must be a number" } }
+            ]
+        },
+        {
+            "type": "password",
+            "field": "admin_password",
+            "label": {
+                "chs": "管理员密码（留空保持不变）",
+                "cht": "管理員密碼（留空保持不變）",
+                "eng": "Admin Password (leave empty to keep current)"
+            },
+            "initValue": ""
         }
     ],
     "nextstep": ""

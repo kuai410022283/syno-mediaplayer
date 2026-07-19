@@ -75,13 +75,14 @@ jobs:
           chmod +x src/mediaplayer
           echo "Binary extracted: ${BINARY_PATH}"
 
-      - name: Convert SVG icon to PNG
+      - name: Verify icons exist
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq librsvg2-bin imagemagick > /dev/null 2>&1
-          # Convert SVG to 256x256 PNG for PACKAGE_ICON_256.PNG
-          rsvg-convert -w 256 -h 256 package/PACKAGE_ICON.svg -o package/PACKAGE_ICON_256.PNG
-          # Convert SVG to 72x72 PNG for PACKAGE_ICON.PNG
-          rsvg-convert -w 72 -h 72 package/PACKAGE_ICON.svg -o package/PACKAGE_ICON.PNG
+          if [ ! -f package/PACKAGE_ICON.PNG ] || [ ! -f package/PACKAGE_ICON_256.PNG ]; then
+            echo "::error::Icon PNG files not found. Expected PACKAGE_ICON.PNG and PACKAGE_ICON_256.PNG"
+            exit 1
+          fi
+          echo "Icons verified:"
+          ls -la package/PACKAGE_ICON*.PNG
 
       - name: Build SPK
         id: build_spk
@@ -126,8 +127,10 @@ jobs:
           cp src/mediaplayer "${PACKAGE_TGZ_DIR}/bin/"
           chmod +x "${PACKAGE_TGZ_DIR}/bin/mediaplayer"
 
-          # Copy default config
-          cp package/conf/config.yaml "${PACKAGE_TGZ_DIR}/etc/config.yaml"
+          # Copy config template (postinst will generate final config from wizard input)
+          cp package/conf/config.yaml.template "${PACKAGE_TGZ_DIR}/etc/config.yaml.template"
+          # Also copy a default config.yaml as fallback
+          cp package/conf/config.yaml.template "${PACKAGE_TGZ_DIR}/etc/config.yaml"
 
           # Create package.tgz
           cd "${PACKAGE_TGZ_DIR}"

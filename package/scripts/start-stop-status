@@ -1,118 +1,136 @@
 #!/bin/sh
 
 # MediaPlayer Synology Package - start-stop-status script
+# Reference: fnOS mediaplayer cmd/main
 
 PACKAGE_NAME="MediaPlayer"
-DAEMON="/var/packages/${PACKAGE_NAME}/target/bin/mediaplayer"
-CONFIG_FILE="/var/packages/${PACKAGE_NAME}/target/etc/config.yaml"
-DATA_DIR="/var/packages/${PACKAGE_NAME}/target/var"
-PID_FILE="${DATA_DIR}/mediaplayer.pid"
+TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
+DAEMON="${TARGET_DIR}/bin/mediaplayer"
+CONFIG_FILE="${TARGET_DIR}/var/config.yaml"
+DATA_DIR="${TARGET_DIR}/var"
 LOG_FILE="${DATA_DIR}/mediaplayer.log"
+PID_FILE="${DATA_DIR}/mediaplayer.pid"
 
-# Ensure data directory exists
-ensure_dirs() {
-    mkdir -p "${DATA_DIR}"
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >>"${LOG_FILE}"
 }
 
-# Create default config if not exists
-ensure_config() {
-    if [ ! -f "${CONFIG_FILE}" ]; then
-        cat > "${CONFIG_FILE}" << 'EOF'
-# MediaPlayer v1.1.4配置文件
-server:
-  host: "0.0.0.0"
-  port: 9527
-
-database:
-  path: "/var/packages/MediaPlayer/target/var/mediaplayer.db"
-
-stream:
-  cache_dir: "/var/packages/MediaPlayer/target/var/cache"
-  max_concurrent: 1000
-  buffer_size: 8192
-
-auth:
-  secret: "mediaplayer-change-this-secret-key"
-  expire_hours: 720
-  admin_password: "admin123"
-
-cors:
-  allowed_origins:
-    - "*"
-
-rate_limit:
-  api: 1000
-  logo: 1000
-  stream: 2000
-EOF
+fail() {
+    local msg="$1"
+    log_msg "FAIL: ${msg}"
+    if [ -n "${SYNOPKG_TEMP_LOGFILE:-}" ]; then
+        echo "${msg}" >"${SYNOPKG_TEMP_LOGFILE}"
     fi
+    return 1
+}
+
+status() {
+    if [ -f "${PID_FILE}" ]; then
+        local pid
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+        if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+start_process() {
+    if status; then
+        log_msg "Process already running (PID $(head -n 1 "${PID_FILE}"))"
+        return 0
+    fi
+
+    log_msg "========== STARTING =========="
+    mkdir -p "${DATA_DIR}/data"
+    mkdir -p "$(dirname "${LOG_FILE}")"
+
+    if [ ! -f "${DAEMON}" ]; then
+        fail "Binary not found: ${DAEMON}"
+        return 1
+    fi
+
+    chmod +x "${DAEMON}"
+
+    # Use config from var if exists, otherwise copy from template
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        if [ -f "${TARGET_DIR}/etc/config.yaml.template" ]; then
+            cp "${TARGET_DIR}/etc/config.yaml.template" "${CONFIG_FILE}"
+        elif [ -f "${TARGET_DIR}/etc/config.yaml" ]; then
+            cp "${TARGET_DIR}/etc/config.yaml" "${CONFIG_FILE}"
+        fi
+    fi
+
+    log_msg "Exec: ${DAEMON}"
+
+    cd "${DATA_DIR}"
+
+    export LD_LIBRARY_PATH="${TARGET_DIR}/lib:${LD_LIBRARY_PATH:-}"
+
+    nohup "${DAEMON}" >"${LOG_FILE}" 2>&1 &
+    local newpid=$!
+    echo "${newpid}" >"${PID_FILE}"
+
+    sleep 2
+    if kill -0 "${newpid}" 2>/dev/null; then
+        log_msg "Started successfully (PID: ${newpid})"
+        return 0
+    else
+        fail "Failed to start. Check log: ${LOG_FILE}"
+        return 1
+    fi
+}
+
+stop_process() {
+    if ! status; then
+        log_msg "Process not running"
+        rm -f "${PID_FILE}"
+        return 0
+    fi
+
+    log_msg "========== STOPPING =========="
+    local pid
+    pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+
+    if [ -n "${pid}" ]; then
+        log_msg "Sending SIGTERM to PID ${pid}"
+        kill "${pid}" 2>/dev/null
+
+        local timeout=10
+        while [ ${timeout} -gt 0 ] && kill -0 "${pid}" 2>/dev/null; do
+            sleep 1
+            timeout=$((timeout - 1))
+        done
+
+        if kill -0 "${pid}" 2>/dev/null; then
+            log_msg "Force killing PID ${pid}"
+            kill -9 "${pid}" 2>/dev/null
+        fi
+    fi
+
+    rm -f "${PID_FILE}"
+    log_msg "Stopped"
+    return 0
 }
 
 case "$1" in
     start)
-        ensure_dirs
-        ensure_config
-
-        if [ -f "${PID_FILE}" ] && kill -0 $(cat "${PID_FILE}") 2>/dev/null; then
-            echo "${PACKAGE_NAME} is already running (PID: $(cat ${PID_FILE}))"
-            exit 0
-        fi
-
-        echo "Starting ${PACKAGE_NAME}..."
-        cd /var/packages/${PACKAGE_NAME}/target
-
-        # Set library path
-        export LD_LIBRARY_PATH="/var/packages/${PACKAGE_NAME}/target/lib:${LD_LIBRARY_PATH}"
-
-        # Start the service in background
-        nohup "${DAEMON}" > "${LOG_FILE}" 2>&1 &
-        echo $! > "${PID_FILE}"
-
-        # Wait a moment and check if process is still running
-        sleep 2
-        if [ -f "${PID_FILE}" ] && kill -0 $(cat "${PID_FILE}") 2>/dev/null; then
-            echo "${PACKAGE_NAME} started successfully (PID: $(cat ${PID_FILE}))"
-            exit 0
-        else
-            echo "Failed to start ${PACKAGE_NAME}. Check log: ${LOG_FILE}"
-            exit 1
-        fi
+        start_process
+        exit $?
         ;;
-
     stop)
-        if [ -f "${PID_FILE}" ]; then
-            PID=$(cat "${PID_FILE}")
-            if kill -0 "${PID}" 2>/dev/null; then
-                echo "Stopping ${PACKAGE_NAME} (PID: ${PID})..."
-                kill "${PID}"
-                # Wait for graceful shutdown
-                TIMEOUT=10
-                while [ ${TIMEOUT} -gt 0 ] && kill -0 "${PID}" 2>/dev/null; do
-                    sleep 1
-                    TIMEOUT=$((TIMEOUT - 1))
-                done
-                # Force kill if still running
-                if kill -0 "${PID}" 2>/dev/null; then
-                    echo "Force killing ${PACKAGE_NAME}..."
-                    kill -9 "${PID}"
-                fi
-            fi
-            rm -f "${PID_FILE}"
-        fi
-        echo "${PACKAGE_NAME} stopped."
+        stop_process
         exit 0
         ;;
-
     status)
-        if [ -f "${PID_FILE}" ] && kill -0 $(cat "${PID_FILE}") 2>/dev/null; then
-            echo "${PACKAGE_NAME} is running (PID: $(cat ${PID_FILE}))"
+        if status; then
+            echo "MediaPlayer is running (PID: $(head -n 1 "${PID_FILE}"))"
             exit 0
         else
-            echo "${PACKAGE_NAME} is not running"
+            echo "MediaPlayer is not running"
             exit 1
         fi
         ;;
-
     *)
         echo "Usage: $0 {start|stop|status}"
         exit 1

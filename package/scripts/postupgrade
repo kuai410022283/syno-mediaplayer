@@ -1,17 +1,49 @@
 #!/bin/sh
 
 # Post-upgrade script for MediaPlayer
+# Reference: fnOS mediaplayer config_callback
 
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
+DATA_DIR="${TARGET_DIR}/var"
+TARGET_CONFIG="${DATA_DIR}/config.yaml"
+CHANGED=0
 
-echo "Post-upgrade: ${PACKAGE_NAME} upgraded successfully."
+echo "MediaPlayer 升级处理中..."
 
-# Ensure new binary has correct permissions
+# 处理安装向导的变量更新配置
+if [ -f "${TARGET_CONFIG}" ]; then
+    # 如果向导提供了新端口
+    if [ -n "${server_port}" ]; then
+        sed -i "s|port: [0-9]*|port: ${server_port}|g" "${TARGET_CONFIG}"
+        echo "${server_port}" >"${DATA_DIR}/server_port"
+        echo "端口已更新为 ${server_port}"
+        CHANGED=1
+    fi
+
+    # 如果向导提供了新密码
+    if [ -n "${admin_password}" ]; then
+        ESCAPED_PWD=$(echo "${admin_password}" | sed -e 's/[\/&]/\\&/g')
+        sed -i "s|admin_password: \".*\"|admin_password: \"${ESCAPED_PWD}\"|g" "${TARGET_CONFIG}"
+        echo "管理员密码已更新"
+        CHANGED=1
+    fi
+
+    if [ "${CHANGED}" -eq 1 ]; then
+        echo "配置已更新，正在重启服务..."
+        if [ -x "${TARGET_DIR}/scripts/start-stop-status" ]; then
+            "${TARGET_DIR}/scripts/start-stop-status" restart
+        fi
+    fi
+else
+    echo "未找到配置文件，跳过配置更新"
+fi
+
+# 确保新二进制有执行权限
 chmod +x "${TARGET_DIR}/bin/mediaplayer"
 
-# Ensure data directory exists
-mkdir -p "${TARGET_DIR}/var"
-mkdir -p "${TARGET_DIR}/var/cache"
+# 确保数据目录存在
+mkdir -p "${DATA_DIR}/data/cache"
 
+echo "MediaPlayer 升级完成！"
 exit 0
