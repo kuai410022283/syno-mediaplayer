@@ -75,15 +75,13 @@ jobs:
           chmod +x src/mediaplayer
           echo "Binary extracted: ${BINARY_PATH}"
 
-      - name: Download icons from fnOS project
+      - name: Verify icons exist
         run: |
-          # Same project icons from fnOS packaging repo
-          ICON_SHA="e21eda8d71357fbb57a8d0d689143259f62b8604"
-          curl -sL --max-time 30 \
-            -H "Accept: application/vnd.github.v3.raw" \
-            "https://api.github.com/repos/Brian099/fn_fpk_packages/git/blobs/${ICON_SHA}" \
-            -o package/PACKAGE_ICON_256.PNG
-          cp package/PACKAGE_ICON_256.PNG package/PACKAGE_ICON.PNG
+          if [ ! -f package/PACKAGE_ICON.PNG ] || [ ! -f package/PACKAGE_ICON_256.PNG ]; then
+            echo "::error::Icon PNG files not found"
+            exit 1
+          fi
+          echo "Icons verified:"
           ls -la package/PACKAGE_ICON*.PNG
 
       - name: Build SPK
