@@ -1,0 +1,19 @@
+# Build artifacts
+*.spk
+*.sha256
+src/mediaplayer
+package/PACKAGE_ICON.PNG
+package/PACKAGE_ICON_256.PNG
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temp
+/tmp/

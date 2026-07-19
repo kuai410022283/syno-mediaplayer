@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# Post-uninstallation script for MediaPlayer
+
+PACKAGE_NAME="MediaPlayer"
+TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
+
+echo "Post-uninstall: Cleaning up ${PACKAGE_NAME}..."
+
+# Note: We keep the data directory (var/) by default for data preservation
+# If user wants clean uninstall, they can manually delete:
+#   rm -rf /var/packages/MediaPlayer/
+
+# Remove symlink if exists
+rm -f /usr/local/bin/mediaplayer 2>/dev/null
+
+echo "Post-uninstall complete."
+echo "Data files preserved at: /var/packages/${PACKAGE_NAME}/target/var/"
+echo "To fully remove: rm -rf /var/packages/${PACKAGE_NAME}/"
+
+exit 0

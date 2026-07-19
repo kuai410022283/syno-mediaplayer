@@ -1,0 +1,214 @@
+# Build Synology SPK package from mediaplayer releases
+name: Build SPK
+
+on:
+  workflow_dispatch:
+    inputs:
+      mediaplayer_version:
+        description: 'mediaplayer version (e.g. v1.1.10)'
+        required: true
+        type: string
+  # Also trigger when this repo gets a new tag push
+  push:
+    tags:
+      - 'v*'
+
+env:
+  MEDIAPLAYER_REPO: kuai410022283/mediaplayer
+  PACKAGE_NAME: MediaPlayer
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - syno_arch: x86_64
+            go_arch: amd64
+            spk_arch: x86_64
+          - syno_arch: aarch64
+            go_arch: arm64
+            spk_arch: aarch64
+          - syno_arch: armv7l
+            go_arch: arm-armv7l
+            spk_arch: armv7l
+
+    steps:
+      - name: Checkout syno-mediaplayer
+        uses: actions/checkout@v4
+
+      - name: Determine mediaplayer version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.mediaplayer_version }}" ]; then
+            echo "version=${{ github.event.inputs.mediaplayer_version }}" >> $GITHUB_OUTPUT
+          else
+            # Use the tag that triggered the workflow
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "version=${TAG}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download mediaplayer binary
+        id: download
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          GO_ARCH="${{ matrix.go_arch }}"
+          FILENAME="mediaplayer-linux-${GO_ARCH}.tar.gz"
+          DOWNLOAD_URL="https://github.com/${MEDIAPLAYER_REPO}/releases/download/${VERSION}/${FILENAME}"
+
+          echo "Downloading: ${DOWNLOAD_URL}"
+          curl -fSL -o "${FILENAME}" "${DOWNLOAD_URL}"
+
+          # Extract binary
+          mkdir -p extracted
+          tar xzf "${FILENAME}" -C extracted
+
+          # Find the mediaplayer binary
+          BINARY_PATH=$(find extracted -name "mediaplayer" -type f | head -1)
+          if [ -z "${BINARY_PATH}" ]; then
+            echo "::error::mediaplayer binary not found in archive"
+            exit 1
+          fi
+
+          cp "${BINARY_PATH}" src/mediaplayer
+          chmod +x src/mediaplayer
+          echo "Binary extracted: ${BINARY_PATH}"
+
+      - name: Convert SVG icon to PNG
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq librsvg2-bin imagemagick > /dev/null 2>&1
+          # Convert SVG to 256x256 PNG for PACKAGE_ICON_256.PNG
+          rsvg-convert -w 256 -h 256 package/PACKAGE_ICON.svg -o package/PACKAGE_ICON_256.PNG
+          # Convert SVG to 72x72 PNG for PACKAGE_ICON.PNG
+          rsvg-convert -w 72 -h 72 package/PACKAGE_ICON.svg -o package/PACKAGE_ICON.PNG
+
+      - name: Build SPK
+        id: build_spk
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Strip 'v' prefix for SPK version (e.g. v1.1.10 -> 1.1.10)
+          SPK_VERSION="${VERSION#v}"
+          SYNO_ARCH="${{ matrix.spk_arch }}"
+          SPK_NAME="${PACKAGE_NAME}-${SYNO_ARCH}-${SPK_VERSION}.spk"
+
+          # Build directory structure
+          BUILD_DIR="/tmp/spk_build"
+          rm -rf "${BUILD_DIR}"
+          mkdir -p "${BUILD_DIR}"
+
+          # Copy INFO with version substituted
+          sed "s/{{VERSION}}/${SPK_VERSION}/g" package/INFO > "${BUILD_DIR}/INFO"
+          # Add architecture
+          echo "arch=\"${SYNO_ARCH}\"" >> "${BUILD_DIR}/INFO"
+
+          # Copy icons
+          cp package/PACKAGE_ICON.PNG "${BUILD_DIR}/"
+          cp package/PACKAGE_ICON_256.PNG "${BUILD_DIR}/"
+
+          # Copy scripts
+          cp -r package/scripts "${BUILD_DIR}/"
+          chmod +x "${BUILD_DIR}/scripts/"*
+
+          # Copy LICENSE if exists
+          [ -f package/LICENSE ] && cp package/LICENSE "${BUILD_DIR}/"
+
+          # Copy conf directory if exists
+          [ -d package/conf ] && cp -r package/conf "${BUILD_DIR}/"
+
+          # Build package.tgz (the actual content: binary + config)
+          PACKAGE_TGZ_DIR="/tmp/package_tgz"
+          rm -rf "${PACKAGE_TGZ_DIR}"
+          mkdir -p "${PACKAGE_TGZ_DIR}/bin"
+          mkdir -p "${PACKAGE_TGZ_DIR}/etc"
+
+          # Copy binary
+          cp src/mediaplayer "${PACKAGE_TGZ_DIR}/bin/"
+          chmod +x "${PACKAGE_TGZ_DIR}/bin/mediaplayer"
+
+          # Copy default config
+          cp package/conf/config.yaml "${PACKAGE_TGZ_DIR}/etc/config.yaml"
+
+          # Create package.tgz
+          cd "${PACKAGE_TGZ_DIR}"
+          tar czf "${BUILD_DIR}/package.tgz" .
+          cd -
+
+          # Create WIZARD_UIFILES if wizard exists
+          if [ -d package/wizard ]; then
+            mkdir -p "${BUILD_DIR}/WIZARD_UIFILES"
+            cp package/wizard/* "${BUILD_DIR}/WIZARD_UIFILES/"
+            chmod +x "${BUILD_DIR}/WIZARD_UIFILES/"*
+          fi
+
+          # Pack SPK (it's just a tar archive)
+          cd "${BUILD_DIR}"
+          tar cf "/tmp/${SPK_NAME}" .
+          cd -
+
+          # Calculate checksum
+          sha256sum "/tmp/${SPK_NAME}" > "/tmp/${SPK_NAME}.sha256"
+
+          echo "SPK built: /tmp/${SPK_NAME}"
+          echo "spk_path=/tmp/${SPK_NAME}" >> $GITHUB_OUTPUT
+          echo "spk_name=${SPK_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.spk_arch }}-spk
+          path: |
+            ${{ steps.build_spk.outputs.spk_path }}
+            ${{ steps.build_spk.outputs.spk_path }}.sha256
+          retention-days: 5
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: find artifacts -type f | sort
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [ -n "${{ github.event.inputs.mediaplayer_version }}" ]; then
+            echo "tag=spk-${{ github.event.inputs.mediaplayer_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "SPK ${{ steps.tag.outputs.tag }}"
+          body: |
+            Synology SPK packages for MediaPlayer ${{ steps.tag.outputs.tag }}
+
+            ### Supported Architectures
+            | Architecture | File | Synology Models |
+            |---|---|---|
+            | x86_64 | `MediaPlayer-x86_64-*.spk` | DS920+, DS1522+, DS720+, etc. |
+            | aarch64 | `MediaPlayer-aarch64-*.spk` | DS220+, DS723+, RS822+, etc. |
+            | armv7l | `MediaPlayer-armv7l-*.spk` | Older ARM models |
+
+            ### Installation
+            1. Download the SPK for your NAS architecture
+            2. Open Synology DSM → Package Center → Manual Install
+            3. Select the downloaded .spk file
+            4. Follow the installation wizard
+          files: |
+            artifacts/**/*.spk
+            artifacts/**/*.sha256
+          draft: false
+          prerelease: false

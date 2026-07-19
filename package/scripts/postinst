@@ -1,0 +1,59 @@
+#!/bin/sh
+
+# Post-installation script for MediaPlayer
+
+PACKAGE_NAME="MediaPlayer"
+TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
+DATA_DIR="${TARGET_DIR}/var"
+
+echo "Post-install: Setting up ${PACKAGE_NAME}..."
+
+# Create necessary directories
+mkdir -p "${DATA_DIR}"
+mkdir -p "${DATA_DIR}/cache"
+
+# Set permissions
+chmod -R 755 "${TARGET_DIR}/bin/"
+chmod -R 755 "${TARGET_DIR}/scripts/"
+
+# Create default config if not exists
+if [ ! -f "${TARGET_DIR}/etc/config.yaml" ]; then
+    cat > "${TARGET_DIR}/etc/config.yaml" << 'EOF'
+# MediaPlayer 配置文件
+# ⚠️ 部署前必须修改 auth.secret 和 auth.admin_password
+
+server:
+  host: "0.0.0.0"
+  port: 9527
+
+database:
+  path: "/var/packages/MediaPlayer/target/var/mediaplayer.db"
+
+stream:
+  cache_dir: "/var/packages/MediaPlayer/target/var/cache"
+  max_concurrent: 1000
+  buffer_size: 8192
+
+auth:
+  # ⚠️ 必须修改！使用随机生成的长字符串
+  secret: "mediaplayer-change-this-secret-key"
+  expire_hours: 720
+  # ⚠️ 必须修改！设置强密码
+  admin_password: "admin123"
+
+cors:
+  allowed_origins:
+    - "*"
+
+rate_limit:
+  api: 1000
+  logo: 1000
+  stream: 2000
+EOF
+fi
+
+echo "Post-install complete."
+echo "Access the web panel at: http://<NAS_IP>:9527"
+echo "Default password: admin123 (CHANGE IT!)"
+
+exit 0

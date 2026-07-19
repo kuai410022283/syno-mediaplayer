@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Post-upgrade script for MediaPlayer
+
+PACKAGE_NAME="MediaPlayer"
+TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
+
+echo "Post-upgrade: ${PACKAGE_NAME} upgraded successfully."
+
+# Ensure new binary has correct permissions
+chmod +x "${TARGET_DIR}/bin/mediaplayer"
+
+# Ensure data directory exists
+mkdir -p "${TARGET_DIR}/var"
+mkdir -p "${TARGET_DIR}/var/cache"
+
+exit 0

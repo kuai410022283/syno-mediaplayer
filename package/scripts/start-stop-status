@@ -1,0 +1,120 @@
+#!/bin/sh
+
+# MediaPlayer Synology Package - start-stop-status script
+
+PACKAGE_NAME="MediaPlayer"
+DAEMON="/var/packages/${PACKAGE_NAME}/target/bin/mediaplayer"
+CONFIG_FILE="/var/packages/${PACKAGE_NAME}/target/etc/config.yaml"
+DATA_DIR="/var/packages/${PACKAGE_NAME}/target/var"
+PID_FILE="${DATA_DIR}/mediaplayer.pid"
+LOG_FILE="${DATA_DIR}/mediaplayer.log"
+
+# Ensure data directory exists
+ensure_dirs() {
+    mkdir -p "${DATA_DIR}"
+}
+
+# Create default config if not exists
+ensure_config() {
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        cat > "${CONFIG_FILE}" << 'EOF'
+# MediaPlayer v1.1.4配置文件
+server:
+  host: "0.0.0.0"
+  port: 9527
+
+database:
+  path: "/var/packages/MediaPlayer/target/var/mediaplayer.db"
+
+stream:
+  cache_dir: "/var/packages/MediaPlayer/target/var/cache"
+  max_concurrent: 1000
+  buffer_size: 8192
+
+auth:
+  secret: "mediaplayer-change-this-secret-key"
+  expire_hours: 720
+  admin_password: "admin123"
+
+cors:
+  allowed_origins:
+    - "*"
+
+rate_limit:
+  api: 1000
+  logo: 1000
+  stream: 2000
+EOF
+    fi
+}
+
+case "$1" in
+    start)
+        ensure_dirs
+        ensure_config
+
+        if [ -f "${PID_FILE}" ] && kill -0 $(cat "${PID_FILE}") 2>/dev/null; then
+            echo "${PACKAGE_NAME} is already running (PID: $(cat ${PID_FILE}))"
+            exit 0
+        fi
+
+        echo "Starting ${PACKAGE_NAME}..."
+        cd /var/packages/${PACKAGE_NAME}/target
+
+        # Set library path
+        export LD_LIBRARY_PATH="/var/packages/${PACKAGE_NAME}/target/lib:${LD_LIBRARY_PATH}"
+
+        # Start the service in background
+        nohup "${DAEMON}" > "${LOG_FILE}" 2>&1 &
+        echo $! > "${PID_FILE}"
+
+        # Wait a moment and check if process is still running
+        sleep 2
+        if [ -f "${PID_FILE}" ] && kill -0 $(cat "${PID_FILE}") 2>/dev/null; then
+            echo "${PACKAGE_NAME} started successfully (PID: $(cat ${PID_FILE}))"
+            exit 0
+        else
+            echo "Failed to start ${PACKAGE_NAME}. Check log: ${LOG_FILE}"
+            exit 1
+        fi
+        ;;
+
+    stop)
+        if [ -f "${PID_FILE}" ]; then
+            PID=$(cat "${PID_FILE}")
+            if kill -0 "${PID}" 2>/dev/null; then
+                echo "Stopping ${PACKAGE_NAME} (PID: ${PID})..."
+                kill "${PID}"
+                # Wait for graceful shutdown
+                TIMEOUT=10
+                while [ ${TIMEOUT} -gt 0 ] && kill -0 "${PID}" 2>/dev/null; do
+                    sleep 1
+                    TIMEOUT=$((TIMEOUT - 1))
+                done
+                # Force kill if still running
+                if kill -0 "${PID}" 2>/dev/null; then
+                    echo "Force killing ${PACKAGE_NAME}..."
+                    kill -9 "${PID}"
+                fi
+            fi
+            rm -f "${PID_FILE}"
+        fi
+        echo "${PACKAGE_NAME} stopped."
+        exit 0
+        ;;
+
+    status)
+        if [ -f "${PID_FILE}" ] && kill -0 $(cat "${PID_FILE}") 2>/dev/null; then
+            echo "${PACKAGE_NAME} is running (PID: $(cat ${PID_FILE}))"
+            exit 0
+        else
+            echo "${PACKAGE_NAME} is not running"
+            exit 1
+        fi
+        ;;
+
+    *)
+        echo "Usage: $0 {start|stop|status}"
+        exit 1
+        ;;
+esac
