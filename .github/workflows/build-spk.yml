@@ -23,16 +23,16 @@ jobs:
     strategy:
       matrix:
         include:
-          # x86_64 platforms: apollolake, geminilake, broadwell, braswell, etc.
-          - spk_arch: apollolake
+          # x86_64: covers apollolake, geminilake, broadwell, braswell, etc.
+          - spk_arch: x86_64
             go_arch: amd64
             arch_family: x86_64
-          # arm64 platforms: rtd1296, rtd1619, armada37xx
-          - spk_arch: rtd1296
+          # armv8: covers rtd1296, rtd1619, armada37xx, etc.
+          - spk_arch: armv8
             go_arch: arm64
             arch_family: aarch64
-          # armv7 platforms: alpine, alpine4k
-          - spk_arch: alpine
+          # armv7: covers alpine, alpine4k
+          - spk_arch: armv7
             go_arch: arm-armv7l
             arch_family: armv7l
 
@@ -194,6 +194,25 @@ jobs:
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Clean old release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          # Check if release exists
+          EXISTING=$(gh api repos/${{ github.repository }}/releases/tags/${TAG} 2>/dev/null && echo "yes" || echo "no")
+          if [ "${EXISTING}" = "yes" ]; then
+            echo "Release ${TAG} exists, cleaning old assets..."
+            # Delete all existing assets
+            gh api repos/${{ github.repository }}/releases/tags/${TAG} --jq '.assets[] | .id' | while read ASSET_ID; do
+              echo "  Deleting asset ${ASSET_ID}..."
+              gh api -X DELETE repos/${{ github.repository }}/releases/assets/${ASSET_ID} || true
+            done
+            echo "Old assets cleaned."
+          else
+            echo "Release ${TAG} does not exist yet, skipping cleanup."
+          fi
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -205,9 +224,9 @@ jobs:
             ### Supported Architectures
             | Architecture | File | Synology Models |
             |---|---|---|
-            | x86_64 (apollolake) | `MediaPlayer-apollolake-*.spk` | DS920+, DS1522+, DS720+, DS923+, etc. |
-            | aarch64 (rtd1296) | `MediaPlayer-rtd1296-*.spk` | DS220+, DS723+, RS822+, etc. |
-            | armv7l (alpine) | `MediaPlayer-alpine-*.spk` | Older ARM models (DS216, etc.) |
+            | x86_64 | `MediaPlayer-x86_64-*.spk` | DS918+, DS920+, DS1522+, DS720+, DS923+, etc. |
+            | aarch64 | `MediaPlayer-aarch64-*.spk` | DS220+, DS723+, RS822+, etc. |
+            | armv7l | `MediaPlayer-armv7l-*.spk` | Older ARM models (DS216, etc.) |
 
             ### Installation
             1. Download the SPK for your NAS architecture
