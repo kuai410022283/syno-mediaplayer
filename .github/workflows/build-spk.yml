@@ -1,4 +1,6 @@
 # Build Synology SPK package from mediaplayer releases
+# Follows official Synology Package Developer Guide
+# https://help.synology.cn/developer-guide
 name: Build SPK
 
 on:
@@ -8,7 +10,6 @@ on:
         description: 'mediaplayer version (e.g. v1.1.10)'
         required: true
         type: string
-  # Also trigger when this repo gets a new tag push
   push:
     tags:
       - 'v*'
@@ -23,36 +24,30 @@ jobs:
     strategy:
       matrix:
         include:
-          # x86_64: covers apollolake, geminilake, broadwell, braswell, etc.
           - spk_arch: x86_64
             go_arch: amd64
             arch_family: x86_64
-          # armv8: covers rtd1296, rtd1619, armada37xx, etc.
-          - spk_arch: armv8
+          - spk_arch: x86_64
             go_arch: arm64
             arch_family: aarch64
-          # armv7: covers alpine, alpine4k
-          - spk_arch: armv7
+          - spk_arch: x86_64
             go_arch: arm-armv7l
             arch_family: armv7l
 
     steps:
-      - name: Checkout syno-mediaplayer
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Determine mediaplayer version
+      - name: Determine version
         id: version
         run: |
           if [ -n "${{ github.event.inputs.mediaplayer_version }}" ]; then
             echo "version=${{ github.event.inputs.mediaplayer_version }}" >> $GITHUB_OUTPUT
           else
-            # Use the tag that triggered the workflow
-            TAG="${GITHUB_REF#refs/tags/}"
-            echo "version=${TAG}" >> $GITHUB_OUTPUT
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
       - name: Download mediaplayer binary
-        id: download
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           GO_ARCH="${{ matrix.go_arch }}"
@@ -62,11 +57,9 @@ jobs:
           echo "Downloading: ${DOWNLOAD_URL}"
           curl -fSL -o "${FILENAME}" "${DOWNLOAD_URL}"
 
-          # Extract binary
           mkdir -p extracted
           tar xzf "${FILENAME}" -C extracted
 
-          # Find the mediaplayer binary
           BINARY_PATH=$(find extracted -name "mediaplayer" -type f | head -1)
           if [ -z "${BINARY_PATH}" ]; then
             echo "::error::mediaplayer binary not found in archive"
@@ -76,83 +69,119 @@ jobs:
           mkdir -p src
           cp "${BINARY_PATH}" src/mediaplayer
           chmod +x src/mediaplayer
-          echo "Binary extracted: ${BINARY_PATH}"
 
-      - name: Verify icons exist
+      - name: Download icons from fnOS project
         run: |
-          if [ ! -f package/PACKAGE_ICON.PNG ] || [ ! -f package/PACKAGE_ICON_256.PNG ]; then
-            echo "::error::Icon PNG files not found"
-            exit 1
-          fi
-          echo "Icons verified:"
-          ls -la package/PACKAGE_ICON*.PNG
+          ICON_SHA="e21eda8d71357fbb57a8d0d689143259f62b8604"
+          curl -sL --max-time 30 \
+            -H "Accept: application/vnd.github.v3.raw" \
+            "https://api.github.com/repos/Brian099/fn_fpk_packages/git/blobs/${ICON_SHA}" \
+            -o package/PACKAGE_ICON_256.PNG
+          # DSM 7.0+ requires 64x64 for PACKAGE_ICON.PNG
+          # Use imagemagick to resize
+          sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick > /dev/null 2>&1
+          convert package/PACKAGE_ICON_256.PNG -resize 64x64 package/PACKAGE_ICON.PNG
 
-      - name: Build SPK
+      - name: Build SPK (official structure)
         id: build_spk
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # Strip 'v' prefix for SPK version (e.g. v1.1.10 -> 1.1.10)
           SPK_VERSION="${VERSION#v}"
           SYNO_ARCH="${{ matrix.spk_arch }}"
           SPK_NAME="${PACKAGE_NAME}-${SYNO_ARCH}-${SPK_VERSION}.spk"
 
-          # Build directory structure
-          BUILD_DIR="/tmp/spk_build"
-          rm -rf "${BUILD_DIR}"
-          mkdir -p "${BUILD_DIR}"
-
-          # Copy INFO with version and architecture substituted
-          sed -e "s/{{VERSION}}/${SPK_VERSION}/g" \
-              -e "s/arch=\"\"/arch=\"${SYNO_ARCH}\"/g" \
-              package/INFO > "${BUILD_DIR}/INFO"
-
-          # Copy icons
-          cp package/PACKAGE_ICON.PNG "${BUILD_DIR}/"
-          cp package/PACKAGE_ICON_256.PNG "${BUILD_DIR}/"
-
-          # Copy scripts
-          cp -r package/scripts "${BUILD_DIR}/"
-          chmod +x "${BUILD_DIR}/scripts/"*
-
-          # Copy conf/privilege (required for DSM 7.0+)
-          cp -r package/spk_conf "${BUILD_DIR}/conf"
-
-          # Copy LICENSE if exists
-
-          # Build package.tgz (the actual content: binary + config)
-          PACKAGE_TGZ_DIR="/tmp/package_tgz"
-          rm -rf "${PACKAGE_TGZ_DIR}"
-          mkdir -p "${PACKAGE_TGZ_DIR}/bin"
-          mkdir -p "${PACKAGE_TGZ_DIR}/etc"
+          # ========================================
+          # Step 1: Build package.tgz (inner content)
+          # ========================================
+          PKG_TGZ_DIR="/tmp/_package_tgz"
+          rm -rf "${PKG_TGZ_DIR}"
+          mkdir -p "${PKG_TGZ_DIR}/bin"
+          mkdir -p "${PKG_TGZ_DIR}/etc"
 
           # Copy binary
-          cp src/mediaplayer "${PACKAGE_TGZ_DIR}/bin/"
-          chmod +x "${PACKAGE_TGZ_DIR}/bin/mediaplayer"
+          cp src/mediaplayer "${PKG_TGZ_DIR}/bin/"
+          chmod +x "${PKG_TGZ_DIR}/bin/mediaplayer"
 
-          # Copy config template (postinst will generate final config from wizard input)
-          cp package/conf/config.yaml.template "${PACKAGE_TGZ_DIR}/etc/config.yaml.template"
-          cp package/conf/config.yaml.template "${PACKAGE_TGZ_DIR}/etc/config.yaml"
+          # Copy config template
+          cp package/conf/config.yaml.template "${PKG_TGZ_DIR}/etc/config.yaml.template"
+          cp package/conf/config.yaml.template "${PKG_TGZ_DIR}/etc/config.yaml"
 
           # Create package.tgz
-          cd "${PACKAGE_TGZ_DIR}"
-          tar czf "${BUILD_DIR}/package.tgz" .
+          cd "${PKG_TGZ_DIR}"
+          tar czf "/tmp/package.tgz" .
           cd -
 
-          # Create WIZARD_UIFILES if wizard exists
-          if [ -d package/wizard ]; then
-            mkdir -p "${BUILD_DIR}/WIZARD_UIFILES"
-            cp package/wizard/* "${BUILD_DIR}/WIZARD_UIFILES/"
+          # ========================================
+          # Step 2: Build SPK (outer structure)
+          # ========================================
+          SPK_DIR="/tmp/_spk"
+          rm -rf "${SPK_DIR}"
+          mkdir -p "${SPK_DIR}"
+
+          # INFO (required)
+          sed -e "s/{{VERSION}}/${SPK_VERSION}/g" \
+              -e "s/arch=\"\"/arch=\"${SYNO_ARCH}\"/g" \
+              package/INFO > "${SPK_DIR}/INFO"
+
+          # package.tgz (required)
+          cp /tmp/package.tgz "${SPK_DIR}/package.tgz"
+
+          # PACKAGE_ICON.PNG (required, 64x64 for DSM 7.0+)
+          cp package/PACKAGE_ICON.PNG "${SPK_DIR}/PACKAGE_ICON.PNG"
+          # PACKAGE_ICON_256.PNG (required)
+          cp package/PACKAGE_ICON_256.PNG "${SPK_DIR}/PACKAGE_ICON_256.PNG"
+
+          # scripts/ (required)
+          cp -r package/scripts "${SPK_DIR}/scripts"
+          chmod +x "${SPK_DIR}/scripts/"*
+
+          # conf/ (required for DSM 7.0+ - must contain privilege)
+          mkdir -p "${SPK_DIR}/conf"
+          cp package/spk_conf/privilege "${SPK_DIR}/conf/privilege"
+
+          # WIZARD_UIFILES/ (optional)
+          if [ -d package/wizard ] && [ "$(ls -A package/wizard)" ]; then
+            mkdir -p "${SPK_DIR}/WIZARD_UIFILES"
+            cp package/wizard/* "${SPK_DIR}/WIZARD_UIFILES/"
           fi
 
-          # Pack SPK (it's just a tar archive)
-          cd "${BUILD_DIR}"
-          tar cf "/tmp/${SPK_NAME}" .
+          # LICENSE (optional)
+          [ -f package/LICENSE ] && cp package/LICENSE "${SPK_DIR}/LICENSE"
+
+          # ========================================
+          # Step 3: Create SPK (tar without ./ prefix)
+          # ========================================
+          # This is critical: DSM requires root-level paths (INFO, not ./INFO)
+          # Using -C to change directory, then list files explicitly
+          cd "${SPK_DIR}"
+          tar cf "/tmp/${SPK_NAME}" \
+            INFO \
+            package.tgz \
+            PACKAGE_ICON.PNG \
+            PACKAGE_ICON_256.PNG \
+            scripts \
+            conf \
+            WIZARD_UIFILES \
+            2>/dev/null || \
+          tar cf "/tmp/${SPK_NAME}" \
+            INFO \
+            package.tgz \
+            PACKAGE_ICON.PNG \
+            PACKAGE_ICON_256.PNG \
+            scripts \
+            conf \
+            2>/dev/null
           cd -
 
-          # Calculate checksum
+          # Verify: check paths don't have ./ prefix
+          echo "=== SPK contents ==="
+          tar tf "/tmp/${SPK_NAME}"
+          echo "=== INFO content ==="
+          tar xf "/tmp/${SPK_NAME}" INFO -O
+
+          # Checksum
           sha256sum "/tmp/${SPK_NAME}" > "/tmp/${SPK_NAME}.sha256"
 
-          echo "SPK built: /tmp/${SPK_NAME}"
           echo "spk_path=/tmp/${SPK_NAME}" >> $GITHUB_OUTPUT
           echo "spk_name=${SPK_NAME}" >> $GITHUB_OUTPUT
 
@@ -179,9 +208,6 @@ jobs:
         with:
           path: artifacts
 
-      - name: List artifacts
-        run: find artifacts -type f | sort
-
       - name: Determine release tag
         id: tag
         run: |
@@ -189,25 +215,6 @@ jobs:
             echo "tag=spk-${{ github.event.inputs.mediaplayer_version }}" >> $GITHUB_OUTPUT
           else
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Clean old release assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="${{ steps.tag.outputs.tag }}"
-          # Check if release exists
-          EXISTING=$(gh api repos/${{ github.repository }}/releases/tags/${TAG} 2>/dev/null && echo "yes" || echo "no")
-          if [ "${EXISTING}" = "yes" ]; then
-            echo "Release ${TAG} exists, cleaning old assets..."
-            # Delete all existing assets
-            gh api repos/${{ github.repository }}/releases/tags/${TAG} --jq '.assets[] | .id' | while read ASSET_ID; do
-              echo "  Deleting asset ${ASSET_ID}..."
-              gh api -X DELETE repos/${{ github.repository }}/releases/assets/${ASSET_ID} || true
-            done
-            echo "Old assets cleaned."
-          else
-            echo "Release ${TAG} does not exist yet, skipping cleanup."
           fi
 
       - name: Create Release
