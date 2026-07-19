@@ -104,6 +104,13 @@ jobs:
           cp package/conf/config.yaml.template "${PKG_TGZ_DIR}/etc/config.yaml.template"
           cp package/conf/config.yaml.template "${PKG_TGZ_DIR}/etc/config.yaml"
 
+          # Copy UI files (for desktop icon)
+          cp -r package/ui "${PKG_TGZ_DIR}/ui"
+
+          # Copy resource files (port config)
+          mkdir -p "${PKG_TGZ_DIR}/resource"
+          cp package/resource/mmediaplayer.sc "${PKG_TGZ_DIR}/resource/"
+
           # Create package.tgz
           cd "${PKG_TGZ_DIR}"
           tar czf "/tmp/package.tgz" .
@@ -136,6 +143,7 @@ jobs:
           # conf/ (required for DSM 7.0+ - must contain privilege)
           mkdir -p "${SPK_DIR}/conf"
           cp package/spk_conf/privilege "${SPK_DIR}/conf/privilege"
+          [ -f package/spk_conf/resource ] && cp package/spk_conf/resource "${SPK_DIR}/conf/resource"
 
           # WIZARD_UIFILES/ (optional)
           if [ -d package/wizard ] && [ "$(ls -A package/wizard)" ]; then

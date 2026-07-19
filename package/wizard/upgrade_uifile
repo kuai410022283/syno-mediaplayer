@@ -1,0 +1,39 @@
+[
+    {
+        "step_title": {
+            "chs": "MediaPlayer 升级配置",
+            "cht": "MediaPlayer 升級配置",
+            "eng": "MediaPlayer Upgrade Setup"
+        },
+        "items": [
+            {
+                "type": "textfield",
+                "desc": {
+                    "chs": "如需修改配置请填写（留空保持原配置）",
+                    "cht": "如需修改配置請填寫（留空保持原配置）",
+                    "eng": "Fill in to change config (leave empty to keep current)"
+                },
+                "subitems": [
+                    {
+                        "key": "server_port",
+                        "desc": {
+                            "chs": "服务端口（留空不变）",
+                            "cht": "服務端口（留空不變）",
+                            "eng": "Service Port (leave empty to keep)"
+                        },
+                        "defaultValue": ""
+                    },
+                    {
+                        "key": "admin_password",
+                        "desc": {
+                            "chs": "管理员密码（留空不变）",
+                            "cht": "管理員密碼（留空不變）",
+                            "eng": "Admin Password (leave empty to keep)"
+                        },
+                        "defaultValue": ""
+                    }
+                ]
+            }
+        ]
+    }
+]
