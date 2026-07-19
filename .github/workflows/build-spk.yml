@@ -70,6 +70,7 @@ jobs:
             exit 1
           fi
 
+          mkdir -p src
           cp "${BINARY_PATH}" src/mediaplayer
           chmod +x src/mediaplayer
           echo "Binary extracted: ${BINARY_PATH}"
