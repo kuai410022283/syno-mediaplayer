@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# Pre-upgrade script for MediaPlayer
+# Check conditions before upgrade, do NOT make side effects
+
+exit 0

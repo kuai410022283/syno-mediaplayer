@@ -114,11 +114,10 @@ jobs:
           cp -r package/scripts "${BUILD_DIR}/"
           chmod +x "${BUILD_DIR}/scripts/"*
 
-          # Copy LICENSE if exists
-          [ -f package/LICENSE ] && cp package/LICENSE "${BUILD_DIR}/"
+          # Copy conf/privilege (required for DSM 7.0+)
+          cp -r package/spk_conf "${BUILD_DIR}/conf"
 
-          # Copy conf directory if exists
-          [ -d package/conf ] && cp -r package/conf "${BUILD_DIR}/"
+          # Copy LICENSE if exists
 
           # Build package.tgz (the actual content: binary + config)
           PACKAGE_TGZ_DIR="/tmp/package_tgz"
@@ -132,7 +131,6 @@ jobs:
 
           # Copy config template (postinst will generate final config from wizard input)
           cp package/conf/config.yaml.template "${PACKAGE_TGZ_DIR}/etc/config.yaml.template"
-          # Also copy a default config.yaml as fallback
           cp package/conf/config.yaml.template "${PACKAGE_TGZ_DIR}/etc/config.yaml"
 
           # Create package.tgz
@@ -144,7 +142,6 @@ jobs:
           if [ -d package/wizard ]; then
             mkdir -p "${BUILD_DIR}/WIZARD_UIFILES"
             cp package/wizard/* "${BUILD_DIR}/WIZARD_UIFILES/"
-            chmod +x "${BUILD_DIR}/WIZARD_UIFILES/"*
           fi
 
           # Pack SPK (it's just a tar archive)
