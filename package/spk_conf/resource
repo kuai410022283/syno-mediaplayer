@@ -3,7 +3,7 @@
         "portals": [
             {
                 "alias": "MediaPlayer",
-                "app": "com.synocommunity.mediaplayer",
+                "app": "SYNO.SDS.MediaPlayer.Application",
                 "name": "MediaPlayer",
                 "service": "MediaPlayer",
                 "type": "server",
