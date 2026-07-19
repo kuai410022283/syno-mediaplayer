@@ -86,7 +86,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           SPK_VERSION="${VERSION#v}"
           SYNO_ARCH="${{ matrix.spk_arch }}"
-          SPK_NAME="${PACKAGE_NAME}-${SYNO_ARCH}-${SPK_VERSION}.spk"
+          SPK_NAME="${PACKAGE_NAME}-${{ matrix.arch_family }}-${SPK_VERSION}.spk"
 
           # ========================================
           # Step 1: Build package.tgz (inner content)
