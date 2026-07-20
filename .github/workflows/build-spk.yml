@@ -172,10 +172,6 @@ jobs:
             ${{ steps.build_spk.outputs.spk_path }}
             ${{ steps.build_spk.outputs.spk_path }}.sha256
           retention-days: 5
-
-  # ==========================================
-  # release job：只有这部分需要修改
-  # ==========================================
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -213,29 +209,32 @@ jobs:
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
 
-          # 创建 release 并上传所有文件，最多重试 5 次
-          for i in 1 2 3 4 5; do
-            echo "=== Attempt $i: Creating release $TAG ==="
-            gh release create "$TAG" \
-              --title "SPK $TAG" \
-              --notes "Synology SPK packages for MediaPlayer $TAG
+          cat > /tmp/release-notes.md << 'NOTES'
+          Synology SPK packages for MediaPlayer
 
           ### Supported Architectures
           | Architecture | File | Synology Models |
           |---|---|---|
-          | x86_64 | \`MediaPlayer-x86_64-*.spk\` | DS918+, DS920+, DS1522+, DS720+, DS923+, etc. |
-          | aarch64 | \`MediaPlayer-aarch64-*.spk\` | DS220+, DS723+, RS822+, etc. |
-          | armv7l | \`MediaPlayer-armv7l-*.spk\` | Older ARM models (DS216, etc.) |
+          | x86_64 | `MediaPlayer-x86_64-*.spk` | DS918+, DS920+, DS1522+, DS720+, DS923+, etc. |
+          | aarch64 | `MediaPlayer-aarch64-*.spk` | DS220+, DS723+, RS822+, etc. |
+          | armv7l | `MediaPlayer-armv7l-*.spk` | Older ARM models (DS216, etc.) |
 
           ### Installation
           1. Download the SPK for your NAS architecture
           2. Open Synology DSM → Package Center → Manual Install
           3. Select the downloaded .spk file
-          4. Follow the installation wizard" \
+          4. Follow the installation wizard
+          NOTES
+
+          for i in 1 2 3 4 5; do
+            echo "=== Attempt $i: Creating release $TAG ==="
+            gh release create "$TAG" \
+              --title "SPK $TAG" \
+              --notes-file /tmp/release-notes.md \
               --draft=false \
               --prerelease=false \
               *.spk *.sha256 && break
-            echo "⏳ Attempt $i failed, retrying in 15s..."
+            echo "Attempt $i failed, retrying in 15s..."
             sleep 15
           done
 
@@ -247,7 +246,7 @@ jobs:
           TAG="${{ steps.tag.outputs.tag }}"
           for file in *.spk *.sha256; do
             for i in 1 2 3 4 5; do
-              echo "⏳ Upload attempt $i for $file"
+              echo "Upload attempt $i for $file"
               gh release upload "$TAG" "$file" --clobber && break
               sleep 15
             done
