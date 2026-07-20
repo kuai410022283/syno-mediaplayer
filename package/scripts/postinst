@@ -106,9 +106,7 @@ fi
         sed -i -e '/^adminport=/d' -e '/^adminurl=/d' "${INFO_FILE}"
         echo "adminurl=\"http://%s:${PORT}/admin\"" >> "${INFO_FILE}"
     fi
-else
-    echo "错误：未找到配置模板 (${TEMPLATE_FILE})"
-fi
+
 
 # 4. 记录数据路径（供 start-stop-status 使用）
 echo "${DATA_DIR}" > "${TARGET_DIR}/var/data_path"
