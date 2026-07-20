@@ -22,7 +22,6 @@ env:
 
 jobs:
   build:
-    # === 以下 build job 内容完全不变 ===
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -172,6 +171,7 @@ jobs:
             ${{ steps.build_spk.outputs.spk_path }}
             ${{ steps.build_spk.outputs.spk_path }}.sha256
           retention-days: 5
+
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -190,7 +190,7 @@ jobs:
 
       - name: Collect release files
         run: |
-          find artifacts -type f $$ -name '*.spk' -o -name '*.sha256' $$ -exec cp {} . \;
+          find artifacts -type f \( -name '*.spk' -o -name '*.sha256' \) -exec cp {} . \;
           echo "=== Release files ==="
           ls -la *.spk *.sha256 2>/dev/null
 
@@ -209,6 +209,7 @@ jobs:
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
 
+          # 写 release notes 到临时文件
           cat > /tmp/release-notes.md << 'NOTES'
           Synology SPK packages for MediaPlayer
 
@@ -226,6 +227,7 @@ jobs:
           4. Follow the installation wizard
           NOTES
 
+          # 创建 release 并上传文件，最多重试 5 次
           for i in 1 2 3 4 5; do
             echo "=== Attempt $i: Creating release $TAG ==="
             gh release create "$TAG" \
