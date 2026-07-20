@@ -46,44 +46,21 @@ else
         SECRET_KEY="mediaplayer-fallback-$(date +%s)"
     fi
 
-    # 使用官方推荐的环境变量直出模式，摒弃脆弱的 sed 正则替换
-    cat <<EOF >"${TARGET_CONFIG}"
-server:
-  host: "0.0.0.0"
-  port: ${PORT}
-
-database:
-  path: "${DATA_DIR}/data/mediaplayer.db"
-
-stream:
-  cache_dir: "${DATA_DIR}/data/cache"
-  max_concurrent: 1000
-  buffer_size: 8192
-
-auth:
-  secret: "${SECRET_KEY}"
-  expire_hours: 720
-  admin_password: "${ADMIN_PWD}"
-
-cors:
-  allowed_origins:
-    - "*"
-
-rate_limit:
-  api: 1000
-  logo: 1000
-  stream: 2000
-EOF
-fi
-
-    # 验证配置生成
-    if grep -q "${DATA_DIR}" "${TARGET_CONFIG}" 2>/dev/null; then
-        echo "配置生成成功（绝对路径）"
+    if [ -f "${TEMPLATE_FILE}" ]; then
+        cp "${TEMPLATE_FILE}" "${TARGET_CONFIG}"
+        # 替换端口
+        sed -i -E "s/^[[:space:]]*port:.*$/  port: ${PORT}/" "${TARGET_CONFIG}"
+        
+        # 替换绝对路径
+        sed -i "s|\"./data/|\"${DATA_DIR}/data/|g" "${TARGET_CONFIG}"
+        
+        # 替换密码和密钥
+        sed -i "s|\"admin123\"|\"${ADMIN_PWD}\"|g" "${TARGET_CONFIG}"
+        sed -i "s|\"mediaplayer-change-this-secret-key\"|\"${SECRET_KEY}\"|g" "${TARGET_CONFIG}"
     else
-        echo "警告：sed 替换可能未生效，手动修复路径"
-        sed -i "s|path: \"./data/|path: \"${DATA_DIR}/data/|g" "${TARGET_CONFIG}"
-        sed -i "s|cache_dir: \"./data/|cache_dir: \"${DATA_DIR}/data/|g" "${TARGET_CONFIG}"
+        echo "错误：未找到配置模板 (${TEMPLATE_FILE})"
     fi
+fi
 
     chown "${PACKAGE_USER}" "${TARGET_CONFIG}"
     chmod 664 "${TARGET_CONFIG}"
