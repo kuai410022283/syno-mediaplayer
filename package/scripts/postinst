@@ -23,11 +23,22 @@ chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 mkdir -p "${DATA_DIR}/data/cache"
 mkdir -p "${DATA_DIR}/config"
 
-# 3. 生成配置文件（绝对路径）
-TEMPLATE_FILE="${TARGET_DIR}/etc/config.yaml.template"
+# 3. 生成或保留配置文件（绝对路径）
 TARGET_CONFIG="${DATA_DIR}/config/config.yaml"
 
-if [ -f "${TEMPLATE_FILE}" ]; then
+if [ -f "${TARGET_CONFIG}" ]; then
+    echo "发现已存在的配置文件，保留原有配置（升级模式）"
+    # 尝试从现有配置文件中提取端口，以便更新桌面快捷方式
+    EXISTING_PORT=$(grep '^[[:space:]]*port:' "${TARGET_CONFIG}" | awk '{print $2}' | tr -d '\r')
+    if [ -n "${EXISTING_PORT}" ]; then
+        PORT="${EXISTING_PORT}"
+        echo "提取到已有端口: ${PORT}"
+    else
+        PORT="9527"
+    fi
+else
+    echo "全新安装，生成配置文件..."
+    TEMPLATE_FILE="${TARGET_DIR}/etc/config.yaml.template"
     PORT="${server_port:-9527}"
     ADMIN_PWD="${admin_password:-admin123}"
 
@@ -64,6 +75,7 @@ rate_limit:
   logo: 1000
   stream: 2000
 EOF
+fi
 
     # 验证配置生成
     if grep -q "${DATA_DIR}" "${TARGET_CONFIG}" 2>/dev/null; then
