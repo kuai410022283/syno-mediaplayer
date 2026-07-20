@@ -15,7 +15,6 @@ jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
-      new_version: ${{ steps.check.outputs.new_version }}
       version: ${{ steps.check.outputs.version }}
     permissions:
       contents: write
@@ -38,23 +37,11 @@ jobs:
           fi
 
           echo "Upstream latest: ${LATEST}"
-
-          # Check if we already have a corresponding release
-          EXISTING=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/tags/spk-${LATEST}" | \
-            python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tag_name',''))" 2>/dev/null || echo "")
-
-          if [ "${EXISTING}" = "spk-${LATEST}" ]; then
-            echo "SPK for ${LATEST} already exists. Skipping."
-            echo "new_version=false" >> $GITHUB_OUTPUT
-          else
-            echo "New version detected: ${LATEST}"
-            echo "new_version=true" >> $GITHUB_OUTPUT
-            echo "version=${LATEST}" >> $GITHUB_OUTPUT
-          fi
+          echo "Always triggering build to ensure package is up-to-date."
+          echo "version=${LATEST}" >> $GITHUB_OUTPUT
 
   build_spk:
     needs: check
-    if: needs.check.outputs.new_version == 'true'
     uses: ./.github/workflows/build-spk.yml
     with:
       mediaplayer_version: ${{ needs.check.outputs.version }}
