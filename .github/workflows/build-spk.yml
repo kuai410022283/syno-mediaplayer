@@ -236,6 +236,14 @@ jobs:
           4. Follow the installation wizard
           NOTES
 
+          # 删除已有的同名 release（避免 "already exists" 错误）
+          echo "Checking for existing release $TAG..."
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Deleting existing release $TAG..."
+            gh release delete "$TAG" --repo "${{ github.repository }}" --yes
+            sleep 2
+          fi
+
           # 创建 release 并上传文件，最多重试 5 次
           for i in 1 2 3 4 5; do
             echo "=== Attempt $i: Creating release $TAG ==="
