@@ -38,13 +38,12 @@ if [ -n "${data_path}" ] && [ "${data_path}" != "" ]; then
     echo "数据路径已更新: ${DATA_DIR}"
 fi
 
-# 5. 更新配置文件中的路径（如果使用默认配置）
+# 5. 确保配置文件存在
 CONFIG_FILE="${DATA_DIR}/config/config.yaml"
-if [ -f "${CONFIG_FILE}" ]; then
-    # 确保数据库路径指向正确的数据目录
-    sed -i "s|path: \"\./data/|path: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
-    sed -i "s|cache_dir: \"\./data/|cache_dir: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
-    echo "配置文件路径已更新"
+CONFIG_TEMPLATE="${TARGET_DIR}/etc/config.yaml.template"
+if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_TEMPLATE}" ]; then
+    cp "${CONFIG_TEMPLATE}" "${CONFIG_FILE}"
+    echo "配置文件从模板重新生成"
 fi
 
 # 6. 确保包用户拥有数据目录的写权限
