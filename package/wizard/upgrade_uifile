@@ -1,18 +1,1 @@
-[
-    {
-        "step_title": "MediaPlayer 升级",
-        "items": [
-            {
-                "type": "textfield",
-                "desc": "数据存储路径（升级后数据保留在此目录，如需修改请填写新路径）",
-                "subitems": [
-                    {
-                        "key": "data_path",
-                        "desc": "数据目录路径（留空保持不变）",
-                        "defaultValue": ""
-                    }
-                ]
-            }
-        ]
-    }
-]
+[]

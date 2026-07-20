@@ -31,7 +31,7 @@ if [ -f "${TEMPLATE_FILE}" ]; then
     PORT="${server_port:-9527}"
     ADMIN_PWD="${admin_password:-admin123}"
 
-    SECRET_KEY=*** -c 32 /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32 2>/dev/null)
+    SECRET_KEY=$(head -c 32 /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32 2>/dev/null)
     if [ -z "${SECRET_KEY}" ]; then
         SECRET_KEY="mediaplayer-fallback-$(date +%s)"
     fi
@@ -53,7 +53,7 @@ if [ -f "${TEMPLATE_FILE}" ]; then
         sed -i "s|cache_dir: \"./data/|cache_dir: \"${DATA_DIR}/data/|g" "${TARGET_CONFIG}"
     fi
 
-    chown "${PACKAGE_USER}:users" "${TARGET_CONFIG}"
+    chown "${PACKAGE_USER}" "${TARGET_CONFIG}"
     chmod 664 "${TARGET_CONFIG}"
 
     echo "配置: ${TARGET_CONFIG}"
@@ -66,7 +66,7 @@ fi
 echo "${DATA_DIR}" > "${TARGET_DIR}/var/data_path"
 
 # 5. 确保包用户拥有数据目录的写权限
-chown -R "${PACKAGE_USER}:users" "${DATA_DIR}"
+chown -R "${PACKAGE_USER}" "${DATA_DIR}"
 chmod -R 775 "${DATA_DIR}"
 
 # 6. 校验

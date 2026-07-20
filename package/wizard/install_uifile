@@ -29,20 +29,6 @@
                         }
                     }
                 ]
-            },
-            {
-                "type": "textfield",
-                "desc": "数据存储路径（数据库、配置、缓存将保存在此目录，升级不会丢失）",
-                "subitems": [
-                    {
-                        "key": "data_path",
-                        "desc": "数据目录路径",
-                        "defaultValue": "/volume1/MediaPlayerData",
-                        "validator": {
-                            "allowBlank": false
-                        }
-                    }
-                ]
             }
         ]
     }
