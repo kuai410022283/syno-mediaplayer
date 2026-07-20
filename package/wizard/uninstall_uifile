@@ -1,0 +1,23 @@
+[
+    {
+        "step_title": "MediaPlayer 卸载",
+        "items": [
+            {
+                "type": "singleselect",
+                "desc": "请选择数据保留方式：",
+                "subitems": [
+                    {
+                        "key": "keep_data",
+                        "desc": "保留数据（配置、数据库和缓存将保留，重新安装后可直接恢复）",
+                        "defaultValue": true
+                    },
+                    {
+                        "key": "delete_data",
+                        "desc": "彻底删除数据（⚠️ 删除所有配置和数据库，不可恢复）",
+                        "defaultValue": false
+                    }
+                ]
+            }
+        ]
+    }
+]
