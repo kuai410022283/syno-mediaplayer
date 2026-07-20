@@ -192,13 +192,13 @@ jobs:
         run: |
           find artifacts -type f \( -name '*.spk' -o -name '*.sha256' \) -exec cp {} . \;
           echo "=== Release files ==="
-          ls -la *.spk *.sha256 2>/dev/null
+          ls -lh *.spk *.sha256 2>/dev/null
 
       - name: Determine release tag
         id: tag
         run: |
           if [ -n "${{ github.event.inputs.mediaplayer_version }}" ]; then
-            echo "tag=spk-${{ github.event.inputs.mediaplayer_version }}" >> $GITHUB_OUTPUT
+            echo "tag=${{ github.event.inputs.mediaplayer_version }}" >> $GITHUB_OUTPUT
           else
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
@@ -207,9 +207,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -x
           TAG="${{ steps.tag.outputs.tag }}"
 
-          # 写 release notes 到临时文件
+          # 确认产物文件存在
+          SPK_COUNT=$(ls *.spk 2>/dev/null | wc -l)
+          echo "Found ${SPK_COUNT} SPK files"
+          if [ "${SPK_COUNT}" -eq 0 ]; then
+            echo "ERROR: No .spk files found!"
+            exit 1
+          fi
+
+          # 写 release notes
           cat > /tmp/release-notes.md << 'NOTES'
           Synology SPK packages for MediaPlayer
 
@@ -230,15 +239,21 @@ jobs:
           # 创建 release 并上传文件，最多重试 5 次
           for i in 1 2 3 4 5; do
             echo "=== Attempt $i: Creating release $TAG ==="
-            gh release create "$TAG" \
+            if gh release create "$TAG" \
               --title "SPK $TAG" \
               --notes-file /tmp/release-notes.md \
               --draft=false \
               --prerelease=false \
-              *.spk *.sha256 && break
+              *.spk *.sha256; then
+              echo "=== Release created successfully ==="
+              gh release view "$TAG"
+              exit 0
+            fi
             echo "Attempt $i failed, retrying in 15s..."
             sleep 15
           done
+          echo "ERROR: All attempts to create release failed"
+          exit 1
 
       - name: Upload missed assets (fallback)
         if: failure()
