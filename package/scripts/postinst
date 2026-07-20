@@ -92,12 +92,12 @@ fi
     echo "配置: ${TARGET_CONFIG}"
     echo "端口: ${PORT}"
 
-    # 动态更新桌面快捷方式跳转页面的端口和路径
-    UI_INDEX="${TARGET_DIR}/ui/index.html"
-    if [ -f "${UI_INDEX}" ]; then
-        sed -i "s|var port = 9527;|var port = ${PORT};|g" "${UI_INDEX}"
-        sed -i "s|window.location.hostname + \":\" + port;|window.location.hostname + \":\" + port + \"/admin\";|g" "${UI_INDEX}"
-        sed -i "s|localhost:9527|localhost:${PORT}/admin|g" "${UI_INDEX}"
+
+
+    # 动态更新桌面快捷方式的 URL 端口
+    UI_CONFIG="${TARGET_DIR}/ui/config"
+    if [ -f "${UI_CONFIG}" ]; then
+        sed -i "s|{{PORT}}|${PORT}|g" "${UI_CONFIG}"
     fi
 
     # 动态写入 INFO 让套件中心显示“打开”按钮

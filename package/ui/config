@@ -3,10 +3,12 @@
         "SYNO.SDS.MediaPlayer.Application": {
             "title": "MediaPlayer",
             "desc": "MediaPlayer Streaming Center",
-            "icon": "images/{0}.png",
+            "icon": "images/icon_{0}.png",
             "type": "url",
-            "url": "3rdparty/MediaPlayer/index.html",
-            "allUsers": true
+            "url": "http://{host}:{{PORT}}/admin",
+            "allUsers": true,
+            "grantPrivilege": "all",
+            "advanceGrantPrivilege": true
         }
     }
 }
