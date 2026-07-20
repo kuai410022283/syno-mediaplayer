@@ -121,6 +121,13 @@ jobs:
           fi
 
           cp -r package/ui "${PKG_TGZ_DIR}/ui"
+          mkdir -p "${PKG_TGZ_DIR}/ui/images"
+          for size in 16 24 32 48 72; do
+            cp package/PACKAGE_ICON.PNG "${PKG_TGZ_DIR}/ui/images/icon_${size}.png"
+          done
+          for size in 120 256; do
+            cp package/PACKAGE_ICON_256.PNG "${PKG_TGZ_DIR}/ui/images/icon_${size}.png"
+          done
 
           cd "${PKG_TGZ_DIR}"
           tar --owner=root --group=root -czf "/tmp/package.tgz" .

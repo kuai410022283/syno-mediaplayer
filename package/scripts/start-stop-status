@@ -67,6 +67,21 @@ start_process() {
     # 确保用户数据目录存在
     mkdir -p "${DATA_DIR}/data/cache"
     mkdir -p "${DATA_DIR}/config"
+    mkdir -p "${DATA_DIR}/library"
+
+    # 处理 web 静态资源目录（解决 TARGET_DIR 只读问题以及 download 目录需写权限的问题）
+    if [ -d "${TARGET_DIR}/web" ]; then
+        mkdir -p "${DATA_DIR}/web"
+        # 将 target 侧的静态文件软链接到运行目录
+        find "${TARGET_DIR}/web" -mindepth 1 -maxdepth 1 | while read -r item; do
+            basename=$(basename "${item}")
+            if [ "${basename}" != "download" ]; then
+                ln -sf "${item}" "${DATA_DIR}/web/${basename}"
+            fi
+        done
+    fi
+    # 强制独立创建真实可写的 download 目录
+    mkdir -p "${DATA_DIR}/web/download"
 
     # 确保配置文件存在
     if [ ! -f "${CONFIG_FILE}" ]; then

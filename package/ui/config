@@ -1,10 +1,12 @@
 {
-    "SYNO.SDS.MediaPlayer.Application": {
-        "appWindow": "SYNO.SDS.MediaPlayer.ApplicationWindow",
-        "title": "MediaPlayer",
-        "desc": "MediaPlayer Streaming Center",
-        "type": "url",
-        "url": "3rdparty/MediaPlayer/index.html",
-        "allUsers": true
+    ".url": {
+        "SYNO.SDS.MediaPlayer.Application": {
+            "title": "MediaPlayer",
+            "desc": "MediaPlayer Streaming Center",
+            "icon": "images/{0}.png",
+            "type": "url",
+            "url": "3rdparty/MediaPlayer/index.html",
+            "allUsers": true
+        }
     }
 }

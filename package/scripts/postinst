@@ -36,13 +36,34 @@ if [ -f "${TEMPLATE_FILE}" ]; then
         SECRET_KEY="mediaplayer-fallback-$(date +%s)"
     fi
 
-    # 生成配置：路径使用绝对路径，使用正则匹配以确保可靠替换
-    sed -e "s|^[[:space:]]*port:.*|  port: ${PORT}|" \
-        -e "s|^[[:space:]]*admin_password:.*|  admin_password: \"${ADMIN_PWD}\"|" \
-        -e "s|^[[:space:]]*secret:.*|  secret: \"${SECRET_KEY}\"|" \
-        -e "s|^[[:space:]]*path:.*|  path: \"${DATA_DIR}/data/mediaplayer.db\"|" \
-        -e "s|^[[:space:]]*cache_dir:.*|  cache_dir: \"${DATA_DIR}/data/cache\"|" \
-        "${TEMPLATE_FILE}" >"${TARGET_CONFIG}"
+    # 使用官方推荐的环境变量直出模式，摒弃脆弱的 sed 正则替换
+    cat <<EOF >"${TARGET_CONFIG}"
+server:
+  host: "0.0.0.0"
+  port: ${PORT}
+
+database:
+  path: "${DATA_DIR}/data/mediaplayer.db"
+
+stream:
+  cache_dir: "${DATA_DIR}/data/cache"
+  max_concurrent: 1000
+  buffer_size: 8192
+
+auth:
+  secret: "${SECRET_KEY}"
+  expire_hours: 720
+  admin_password: "${ADMIN_PWD}"
+
+cors:
+  allowed_origins:
+    - "*"
+
+rate_limit:
+  api: 1000
+  logo: 1000
+  stream: 2000
+EOF
 
     # 验证配置生成
     if grep -q "${DATA_DIR}" "${TARGET_CONFIG}" 2>/dev/null; then
@@ -65,6 +86,13 @@ if [ -f "${TEMPLATE_FILE}" ]; then
         sed -i "s|var port = 9527;|var port = ${PORT};|g" "${UI_INDEX}"
         sed -i "s|window.location.hostname + \":\" + port;|window.location.hostname + \":\" + port + \"/admin\";|g" "${UI_INDEX}"
         sed -i "s|localhost:9527|localhost:${PORT}/admin|g" "${UI_INDEX}"
+    fi
+
+    # 动态写入 INFO 让套件中心显示“打开”按钮
+    INFO_FILE="/var/packages/${PACKAGE_NAME}/INFO"
+    if [ -f "${INFO_FILE}" ]; then
+        sed -i -e '/^adminport=/d' -e '/^adminurl=/d' "${INFO_FILE}"
+        echo "adminurl=\"http://%s:${PORT}/admin\"" >> "${INFO_FILE}"
     fi
 else
     echo "错误：未找到配置模板 (${TEMPLATE_FILE})"
