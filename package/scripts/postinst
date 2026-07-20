@@ -36,12 +36,12 @@ if [ -f "${TEMPLATE_FILE}" ]; then
         SECRET_KEY="mediaplayer-fallback-$(date +%s)"
     fi
 
-    # 生成配置：路径使用绝对路径
-    sed -e "s|port: 9527|port: ${PORT}|g" \
-        -e "s|admin_password: \"admin123\"|admin_password: \"${ADMIN_PWD}\"|g" \
-        -e "s|secret: \"mediaplayer-change-this-secret-key\"|secret: \"${SECRET_KEY}\"|g" \
-        -e "s|path: \"./data/mediaplayer.db\"|path: \"${DATA_DIR}/data/mediaplayer.db\"|g" \
-        -e "s|cache_dir: \"./data/cache\"|cache_dir: \"${DATA_DIR}/data/cache\"|g" \
+    # 生成配置：路径使用绝对路径，使用正则匹配以确保可靠替换
+    sed -e "s|^[[:space:]]*port:.*|  port: ${PORT}|" \
+        -e "s|^[[:space:]]*admin_password:.*|  admin_password: \"${ADMIN_PWD}\"|" \
+        -e "s|^[[:space:]]*secret:.*|  secret: \"${SECRET_KEY}\"|" \
+        -e "s|^[[:space:]]*path:.*|  path: \"${DATA_DIR}/data/mediaplayer.db\"|" \
+        -e "s|^[[:space:]]*cache_dir:.*|  cache_dir: \"${DATA_DIR}/data/cache\"|" \
         "${TEMPLATE_FILE}" >"${TARGET_CONFIG}"
 
     # 验证配置生成
@@ -58,6 +58,14 @@ if [ -f "${TEMPLATE_FILE}" ]; then
 
     echo "配置: ${TARGET_CONFIG}"
     echo "端口: ${PORT}"
+
+    # 动态更新桌面快捷方式跳转页面的端口和路径
+    UI_INDEX="${TARGET_DIR}/ui/index.html"
+    if [ -f "${UI_INDEX}" ]; then
+        sed -i "s|var port = 9527;|var port = ${PORT};|g" "${UI_INDEX}"
+        sed -i "s|window.location.hostname + \":\" + port;|window.location.hostname + \":\" + port + \"/admin\";|g" "${UI_INDEX}"
+        sed -i "s|localhost:9527|localhost:${PORT}/admin|g" "${UI_INDEX}"
+    fi
 else
     echo "错误：未找到配置模板 (${TEMPLATE_FILE})"
 fi

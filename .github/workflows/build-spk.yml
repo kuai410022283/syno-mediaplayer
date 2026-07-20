@@ -144,6 +144,7 @@ jobs:
 
           mkdir -p "${SPK_DIR}/conf"
           cp package/spk_conf/privilege "${SPK_DIR}/conf/privilege"
+          [ -f package/spk_conf/resource ] && cp package/spk_conf/resource "${SPK_DIR}/conf/resource"
 
           if [ -d package/wizard ] && [ "$(ls -A package/wizard)" ]; then
             mkdir -p "${SPK_DIR}/WIZARD_UIFILES"
