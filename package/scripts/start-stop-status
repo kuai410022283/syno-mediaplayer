@@ -1,23 +1,27 @@
 #!/bin/sh
 
-# MediaPlayer Synology Package - start-stop-status script
+# MediaPlayer Synology Package - start-stop-status script (DSM 7)
 
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
 DAEMON="${TARGET_DIR}/bin/mediaplayer"
-DATA_DIR_FILE="${TARGET_DIR}/var/data_path"
-LOG_FILE="${TARGET_DIR}/var/mediaplayer.log"
-PID_FILE="${TARGET_DIR}/var/mediaplayer.pid"
 
-# Read data path from saved file, fallback to default
+# DSM 7 标准：SYNOPKG_PKGVAR 是持久化数据目录
+DATA_DIR="${SYNOPKG_PKGVAR:-/var/packages/${PACKAGE_NAME}/var}"
+DATA_DIR_FILE="${TARGET_DIR}/var/data_path"
+
+# 兼容旧版：如果 data_path 文件存在，使用它
 if [ -f "${DATA_DIR_FILE}" ]; then
-    DATA_DIR=$(cat "${DATA_DIR_FILE}" | tr -d '\n')
-else
-    DATA_DIR="/volume1/MediaPlayerData"
+    SAVED_DIR=$(cat "${DATA_DIR_FILE}" | tr -d '\n')
+    if [ -n "${SAVED_DIR}" ] && [ -d "${SAVED_DIR}" ]; then
+        DATA_DIR="${SAVED_DIR}"
+    fi
 fi
 
-CONFIG_TEMPLATE="${TARGET_DIR}/etc/config.yaml.template"
+LOG_FILE="${DATA_DIR}/mediaplayer.log"
+PID_FILE="${DATA_DIR}/mediaplayer.pid"
 CONFIG_FILE="${DATA_DIR}/config/config.yaml"
+CONFIG_TEMPLATE="${TARGET_DIR}/etc/config.yaml.template"
 
 log_msg() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >>"${LOG_FILE}"
@@ -50,6 +54,7 @@ start_process() {
     fi
 
     log_msg "========== STARTING =========="
+    mkdir -p "${DATA_DIR}"
     mkdir -p "${TARGET_DIR}/var"
 
     if [ ! -f "${DAEMON}" ]; then
@@ -67,9 +72,9 @@ start_process() {
     if [ ! -f "${CONFIG_FILE}" ]; then
         if [ -f "${CONFIG_TEMPLATE}" ]; then
             cp "${CONFIG_TEMPLATE}" "${CONFIG_FILE}"
-            log_msg "Config copied from template (relative paths)"
+            log_msg "Config copied from template"
         else
-            fail "Config not found: ${CONFIG_FILE} and no template at ${CONFIG_TEMPLATE}"
+            fail "Config not found: ${CONFIG_FILE}"
             return 1
         fi
     fi
@@ -86,7 +91,7 @@ start_process() {
     log_msg "Config: ${CONFIG_FILE}"
 
     # 直接在数据目录下运行二进制
-    # 二进制从 cwd 读取 config.yaml，./data/ 就是数据目录本身
+    # 二进制从 cwd 读取 config.yaml
     cd "${DATA_DIR}"
 
     export LD_LIBRARY_PATH="${TARGET_DIR}/lib:${LD_LIBRARY_PATH:-}"

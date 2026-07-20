@@ -1,20 +1,23 @@
 #!/bin/sh
 
-# Post-upgrade script for MediaPlayer
+# Post-upgrade script for MediaPlayer (DSM 7)
 
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
-DATA_DIR_FILE="${TARGET_DIR}/var/data_path"
+DATA_DIR="${SYNOPKG_PKGVAR:-/var/packages/${PACKAGE_NAME}/var}"
 PACKAGE_USER="sc-MediaPlayer"
 
 echo "MediaPlayer 升级处理中..."
 
 chmod +x "${TARGET_DIR}/bin/mediaplayer" 2>/dev/null || true
 
+# 兼容旧版：检查是否有自定义数据路径
+DATA_DIR_FILE="${TARGET_DIR}/var/data_path"
 if [ -f "${DATA_DIR_FILE}" ]; then
-    DATA_DIR=$(cat "${DATA_DIR_FILE}" | tr -d '\n')
-else
-    DATA_DIR="/volume1/MediaPlayerData"
+    SAVED_DIR=$(cat "${DATA_DIR_FILE}" | tr -d '\n')
+    if [ -n "${SAVED_DIR}" ] && [ -d "${SAVED_DIR}" ]; then
+        DATA_DIR="${SAVED_DIR}"
+    fi
 fi
 
 echo "数据目录: ${DATA_DIR}"

@@ -1,20 +1,25 @@
 #!/bin/sh
 
-# Post-installation script for MediaPlayer
+# Post-installation script for MediaPlayer (DSM 7)
 
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
-DATA_DIR="${data_path:-/volume1/MediaPlayerData}"
+
+# DSM 7 标准环境变量
+# SYNOPKG_PKGVAR = /var/packages/<package>/var (持久化数据，升级不丢失)
+# SYNOPKG_PKGDEST = /var/packages/<package>/target (安装目录)
+DATA_DIR="${SYNOPKG_PKGVAR:-/var/packages/${PACKAGE_NAME}/var}"
 PACKAGE_USER="sc-MediaPlayer"
 
 echo "开始安装 MediaPlayer..."
+echo "安装目录: ${TARGET_DIR}"
 echo "数据目录: ${DATA_DIR}"
 
 # 1. 设置执行权限
 chmod +x "${TARGET_DIR}/bin/mediaplayer" 2>/dev/null || true
 chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 
-# 2. 创建数据目录
+# 2. 创建数据目录结构（DSM 7 标准路径）
 mkdir -p "${DATA_DIR}/data/cache"
 mkdir -p "${DATA_DIR}/config"
 
@@ -26,7 +31,7 @@ if [ -f "${TEMPLATE_FILE}" ]; then
     PORT="${server_port:-9527}"
     ADMIN_PWD="${admin_password:-admin123}"
 
-    SECRET_KEY=$(head -c 32 /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32 2>/dev/null)
+    SECRET_KEY=*** -c 32 /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32 2>/dev/null)
     if [ -z "${SECRET_KEY}" ]; then
         SECRET_KEY="mediaplayer-fallback-$(date +%s)"
     fi
@@ -51,26 +56,24 @@ if [ -f "${TEMPLATE_FILE}" ]; then
     chown "${PACKAGE_USER}:users" "${TARGET_CONFIG}"
     chmod 664 "${TARGET_CONFIG}"
 
-    echo "${DATA_DIR}" > "${TARGET_DIR}/var/data_path"
-    echo "${PORT}" > "${TARGET_DIR}/var/server_port"
-
     echo "配置: ${TARGET_CONFIG}"
     echo "端口: ${PORT}"
 else
     echo "错误：未找到配置模板 (${TEMPLATE_FILE})"
 fi
 
-# 4. 确保包用户拥有数据目录的写权限
+# 4. 记录数据路径（供 start-stop-status 使用）
+echo "${DATA_DIR}" > "${TARGET_DIR}/var/data_path"
+
+# 5. 确保包用户拥有数据目录的写权限
 chown -R "${PACKAGE_USER}:users" "${DATA_DIR}"
 chmod -R 775 "${DATA_DIR}"
 
-# 5. 校验
+# 6. 校验
 echo "=== 校验 ==="
 ls -la "${DATA_DIR}/"
-ls -la "${DATA_DIR}/data/"
-ls -la "${DATA_DIR}/config/"
-echo "=== 配置内容 ==="
-cat "${TARGET_CONFIG}" 2>/dev/null | grep -E "path|cache_dir|port|secret" || echo "配置文件不存在"
+ls -la "${DATA_DIR}/data/" 2>/dev/null || true
+ls -la "${DATA_DIR}/config/" 2>/dev/null || true
 
 echo "MediaPlayer 安装完成！"
 exit 0
