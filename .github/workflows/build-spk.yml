@@ -1,6 +1,8 @@
-# Build Synology SPK package from mediaplayer releases
-# Follows official Synology Package Developer Guide
-# https://help.synology.cn/developer-guide
+# ==========================================
+# 原文件中 build job 完全不动
+# 只替换 release job 的步骤 3 和新增 fallback
+# ==========================================
+
 name: Build SPK
 
 on:
@@ -20,6 +22,7 @@ env:
 
 jobs:
   build:
+    # === 以下 build job 内容完全不变 ===
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -57,11 +60,9 @@ jobs:
           echo "Downloading: ${DOWNLOAD_URL}"
           curl -fSL -o "${FILENAME}" "${DOWNLOAD_URL}"
 
-          # Extract to src/ - preserves directory structure
           mkdir -p src
           tar xzf "${FILENAME}" -C src --strip-components=1
 
-          # Verify contents
           echo "=== Release contents ==="
           ls -la src/
           echo "=== Web files ==="
@@ -86,18 +87,14 @@ jobs:
           SYNO_ARCH="${{ matrix.spk_arch }}"
           SPK_NAME="${PACKAGE_NAME}-${{ matrix.arch_family }}-${SPK_VERSION}.spk"
 
-          # ========================================
-          # Step 1: Build package.tgz (inner content)
-          # ========================================
+          # Step 1: Build package.tgz
           PKG_TGZ_DIR="/tmp/_package_tgz"
           rm -rf "${PKG_TGZ_DIR}"
 
-          # Copy binary
           mkdir -p "${PKG_TGZ_DIR}/bin"
           cp src/mediaplayer "${PKG_TGZ_DIR}/bin/"
           chmod +x "${PKG_TGZ_DIR}/bin/mediaplayer"
 
-          # Copy web frontend (from release)
           if [ -d src/web ]; then
             cp -r src/web "${PKG_TGZ_DIR}/web"
             echo "Web files copied:"
@@ -106,7 +103,6 @@ jobs:
             echo "::warning::No web directory in release"
           fi
 
-          # Copy config template (from release config.yaml or project template)
           mkdir -p "${PKG_TGZ_DIR}/etc"
           if [ -f src/config.yaml ]; then
             cp src/config.yaml "${PKG_TGZ_DIR}/etc/config.yaml.template"
@@ -118,50 +114,37 @@ jobs:
             echo "Config from project template"
           fi
 
-          # Copy UI files (desktop icon config)
           cp -r package/ui "${PKG_TGZ_DIR}/ui"
 
-          # Create package.tgz
           cd "${PKG_TGZ_DIR}"
           tar czf "/tmp/package.tgz" .
           cd -
 
-          # ========================================
-          # Step 2: Build SPK (outer structure)
-          # ========================================
+          # Step 2: Build SPK
           SPK_DIR="/tmp/_spk"
           rm -rf "${SPK_DIR}"
           mkdir -p "${SPK_DIR}"
 
-          # INFO (required)
           sed -e "s/{{VERSION}}/${SPK_VERSION}/g" \
               -e "s/arch=\"\"/arch=\"${SYNO_ARCH}\"/g" \
               package/INFO > "${SPK_DIR}/INFO"
 
-          # package.tgz (required)
           cp /tmp/package.tgz "${SPK_DIR}/package.tgz"
-
-          # PACKAGE_ICON.PNG (required)
           cp package/PACKAGE_ICON.PNG "${SPK_DIR}/PACKAGE_ICON.PNG"
           cp package/PACKAGE_ICON_256.PNG "${SPK_DIR}/PACKAGE_ICON_256.PNG"
 
-          # scripts/ (required)
           cp -r package/scripts "${SPK_DIR}/scripts"
           chmod +x "${SPK_DIR}/scripts/"*
 
-          # conf/ (required for DSM 7.0+ - must contain privilege)
           mkdir -p "${SPK_DIR}/conf"
           cp package/spk_conf/privilege "${SPK_DIR}/conf/privilege"
 
-          # WIZARD_UIFILES/
           if [ -d package/wizard ] && [ "$(ls -A package/wizard)" ]; then
             mkdir -p "${SPK_DIR}/WIZARD_UIFILES"
             cp package/wizard/* "${SPK_DIR}/WIZARD_UIFILES/"
           fi
 
-          # ========================================
-          # Step 3: Create SPK (tar without ./ prefix)
-          # ========================================
+          # Step 3: Create SPK
           cd "${SPK_DIR}"
           FILES_TO_PACK="INFO package.tgz PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG scripts conf"
           [ -d WIZARD_UIFILES ] && FILES_TO_PACK="${FILES_TO_PACK} WIZARD_UIFILES"
@@ -169,7 +152,6 @@ jobs:
           tar cf "/tmp/${SPK_NAME}" ${FILES_TO_PACK}
           cd -
 
-          # Verify
           echo "=== SPK contents ==="
           tar tf "/tmp/${SPK_NAME}"
           echo "=== INFO ==="
@@ -177,7 +159,6 @@ jobs:
           echo "=== package.tgz size ==="
           ls -la /tmp/package.tgz
 
-          # Checksum
           sha256sum "/tmp/${SPK_NAME}" > "/tmp/${SPK_NAME}.sha256"
 
           echo "spk_path=/tmp/${SPK_NAME}" >> $GITHUB_OUTPUT
@@ -192,6 +173,9 @@ jobs:
             ${{ steps.build_spk.outputs.spk_path }}.sha256
           retention-days: 5
 
+  # ==========================================
+  # release job：只有这部分需要修改
+  # ==========================================
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -208,6 +192,12 @@ jobs:
         with:
           path: artifacts
 
+      - name: Collect release files
+        run: |
+          find artifacts -type f $$ -name '*.spk' -o -name '*.sha256' $$ -exec cp {} . \;
+          echo "=== Release files ==="
+          ls -la *.spk *.sha256 2>/dev/null
+
       - name: Determine release tag
         id: tag
         run: |
@@ -217,28 +207,48 @@ jobs:
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: "SPK ${{ steps.tag.outputs.tag }}"
-          body: |
-            Synology SPK packages for MediaPlayer ${{ steps.tag.outputs.tag }}
+      - name: Create Release with retry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
 
-            ### Supported Architectures
-            | Architecture | File | Synology Models |
-            |---|---|---|
-            | x86_64 | `MediaPlayer-x86_64-*.spk` | DS918+, DS920+, DS1522+, DS720+, DS923+, etc. |
-            | aarch64 | `MediaPlayer-aarch64-*.spk` | DS220+, DS723+, RS822+, etc. |
-            | armv7l | `MediaPlayer-armv7l-*.spk` | Older ARM models (DS216, etc.) |
+          # 创建 release 并上传所有文件，最多重试 5 次
+          for i in 1 2 3 4 5; do
+            echo "=== Attempt $i: Creating release $TAG ==="
+            gh release create "$TAG" \
+              --title "SPK $TAG" \
+              --notes "Synology SPK packages for MediaPlayer $TAG
 
-            ### Installation
-            1. Download the SPK for your NAS architecture
-            2. Open Synology DSM → Package Center → Manual Install
-            3. Select the downloaded .spk file
-            4. Follow the installation wizard
-          files: |
-            artifacts/**/*.spk
-            artifacts/**/*.sha256
-          draft: false
-          prerelease: false
+          ### Supported Architectures
+          | Architecture | File | Synology Models |
+          |---|---|---|
+          | x86_64 | \`MediaPlayer-x86_64-*.spk\` | DS918+, DS920+, DS1522+, DS720+, DS923+, etc. |
+          | aarch64 | \`MediaPlayer-aarch64-*.spk\` | DS220+, DS723+, RS822+, etc. |
+          | armv7l | \`MediaPlayer-armv7l-*.spk\` | Older ARM models (DS216, etc.) |
+
+          ### Installation
+          1. Download the SPK for your NAS architecture
+          2. Open Synology DSM → Package Center → Manual Install
+          3. Select the downloaded .spk file
+          4. Follow the installation wizard" \
+              --draft=false \
+              --prerelease=false \
+              *.spk *.sha256 && break
+            echo "⏳ Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
+
+      - name: Upload missed assets (fallback)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          for file in *.spk *.sha256; do
+            for i in 1 2 3 4 5; do
+              echo "⏳ Upload attempt $i for $file"
+              gh release upload "$TAG" "$file" --clobber && break
+              sleep 15
+            done
+          done
