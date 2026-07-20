@@ -239,14 +239,14 @@ jobs:
           # 创建 release 并上传文件，最多重试 5 次
           for i in 1 2 3 4 5; do
             echo "=== Attempt $i: Creating release $TAG ==="
-            if gh release create "$TAG" \
+            if gh release create "$TAG" --repo "${{ github.repository }}" \
               --title "SPK $TAG" \
               --notes-file /tmp/release-notes.md \
               --draft=false \
               --prerelease=false \
               *.spk *.sha256; then
               echo "=== Release created successfully ==="
-              gh release view "$TAG"
+              gh release view "$TAG" --repo "${{ github.repository }}"
               exit 0
             fi
             echo "Attempt $i failed, retrying in 15s..."
@@ -264,7 +264,7 @@ jobs:
           for file in *.spk *.sha256; do
             for i in 1 2 3 4 5; do
               echo "Upload attempt $i for $file"
-              gh release upload "$TAG" "$file" --clobber && break
+              gh release upload "$TAG" --repo "${{ github.repository }}" "$file" --clobber && break
               sleep 15
             done
           done
