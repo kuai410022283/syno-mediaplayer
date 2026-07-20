@@ -15,6 +15,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_call:
+    inputs:
+      mediaplayer_version:
+        description: 'mediaplayer version (e.g. v1.1.10)'
+        required: true
+        type: string
 
 env:
   MEDIAPLAYER_REPO: kuai410022283/mediaplayer
@@ -43,8 +49,9 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if [ -n "${{ github.event.inputs.mediaplayer_version }}" ]; then
-            echo "version=${{ github.event.inputs.mediaplayer_version }}" >> $GITHUB_OUTPUT
+          VERSION_INPUT="${{ inputs.mediaplayer_version || github.event.inputs.mediaplayer_version }}"
+          if [ -n "$VERSION_INPUT" ]; then
+            echo "version=$VERSION_INPUT" >> $GITHUB_OUTPUT
           else
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
@@ -116,7 +123,7 @@ jobs:
           cp -r package/ui "${PKG_TGZ_DIR}/ui"
 
           cd "${PKG_TGZ_DIR}"
-          tar czf "/tmp/package.tgz" .
+          tar --owner=root --group=root -czf "/tmp/package.tgz" .
           cd -
 
           # Step 2: Build SPK
@@ -145,10 +152,15 @@ jobs:
 
           # Step 3: Create SPK
           cd "${SPK_DIR}"
+
+          # Fix line endings (Synology strictly requires LF for INFO and scripts)
+          find . -type f -name "INFO" -exec sed -i 's/\r$//' {} +
+          find scripts conf WIZARD_UIFILES -type f -exec sed -i 's/\r$//' {} + 2>/dev/null || true
+
           FILES_TO_PACK="INFO package.tgz PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG scripts conf"
           [ -d WIZARD_UIFILES ] && FILES_TO_PACK="${FILES_TO_PACK} WIZARD_UIFILES"
           [ -f LICENSE ] && FILES_TO_PACK="${FILES_TO_PACK} LICENSE"
-          tar cf "/tmp/${SPK_NAME}" ${FILES_TO_PACK}
+          tar --format=gnu --owner=root --group=root -cf "/tmp/${SPK_NAME}" ${FILES_TO_PACK}
           cd -
 
           echo "=== SPK contents ==="
@@ -197,15 +209,16 @@ jobs:
       - name: Determine release tag
         id: tag
         run: |
-          if [ -n "${{ github.event.inputs.mediaplayer_version }}" ]; then
-            echo "tag=${{ github.event.inputs.mediaplayer_version }}" >> $GITHUB_OUTPUT
+          TAG_INPUT="${{ inputs.mediaplayer_version || github.event.inputs.mediaplayer_version }}"
+          if [ -n "$TAG_INPUT" ]; then
+            echo "tag=$TAG_INPUT" >> $GITHUB_OUTPUT
           else
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Release with retry
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -x
           TAG="${{ steps.tag.outputs.tag }}"
@@ -265,7 +278,7 @@ jobs:
       - name: Upload missed assets (fallback)
         if: failure()
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
           for file in *.spk *.sha256; do
