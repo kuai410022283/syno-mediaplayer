@@ -70,10 +70,15 @@ fi
 
 
 
-    # 动态更新桌面快捷方式的 URL 端口
+    # 动态更新桌面快捷方式的 URL 端口和重定向页面的端口
     UI_CONFIG="${TARGET_DIR}/ui/config"
     if [ -f "${UI_CONFIG}" ]; then
         sed -i "s|{{PORT}}|${PORT}|g" "${UI_CONFIG}"
+    fi
+    
+    UI_INDEX="${TARGET_DIR}/ui/index.html"
+    if [ -f "${UI_INDEX}" ]; then
+        sed -i "s|{{PORT}}|${PORT}|g" "${UI_INDEX}"
     fi
 
     # 动态写入 INFO 让套件中心显示“打开”按钮

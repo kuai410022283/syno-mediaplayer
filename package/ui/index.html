@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>MediaPlayer Loading...</title>
+</head>
+<body>
+    <script>
+        // postinst 安装时，会把下方的 {{PORT}} 替换成真实端口（如 5035）
+        var port = "{{PORT}}";
+        
+        // 动态拼装真实的 IP 和端口
+        var targetUrl = window.location.protocol + "//" + window.location.hostname + ":" + port + "/admin";
+        
+        // 直接在当前顶级窗口跳转，实现最极简的无缝体验
+        window.top.location.href = targetUrl;
+    </script>
+</body>
+</html>
