@@ -1,29 +1,31 @@
 #!/bin/sh
 
 # Post-installation script for MediaPlayer
-# Follows fnOS mediaplayer install_callback logic
+# Data is stored in user-specified path (outside package directory)
+# to survive package upgrades
 
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
-DATA_DIR="${TARGET_DIR}/var"
+DATA_DIR="${data_path:-/volume1/MediaPlayerData}"
 
 echo "开始安装 MediaPlayer..."
+echo "数据目录: ${DATA_DIR}"
 
 # 1. 设置执行权限
 chmod +x "${TARGET_DIR}/bin/mediaplayer" 2>/dev/null || true
 chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 
-# 2. 创建数据目录
+# 2. 创建数据目录结构
 mkdir -p "${DATA_DIR}/data/cache"
+mkdir -p "${DATA_DIR}/config"
 
 # 3. 从向导获取参数，生成配置文件
 TEMPLATE_FILE="${TARGET_DIR}/etc/config.yaml.template"
-TARGET_CONFIG="${DATA_DIR}/config.yaml"
+TARGET_CONFIG="${DATA_DIR}/config/config.yaml"
 
 if [ -f "${TEMPLATE_FILE}" ]; then
     PORT="${server_port:-9527}"
     ADMIN_PWD="${admin_password:-admin123}"
-    DATA_PATH="${data_path:-${DATA_DIR}}"
 
     # 生成随机 jwt secret
     SECRET_KEY=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1 2>/dev/null)
@@ -31,20 +33,21 @@ if [ -f "${TEMPLATE_FILE}" ]; then
         SECRET_KEY="mediaplayer-fallback-$(date +%s)"
     fi
 
-    # 创建数据目录
-    mkdir -p "${DATA_PATH}/data/cache"
-
-    # 替换配置
+    # 替换配置（使用绝对路径）
     sed -e "s|port: 9527|port: ${PORT}|g" \
         -e "s|admin_password: \"admin123\"|admin_password: \"${ADMIN_PWD}\"|g" \
         -e "s|secret: \"mediaplayer-change-this-secret-key\"|secret: \"${SECRET_KEY}\"|g" \
-        -e "s|path: \"./data/mediaplayer.db\"|path: \"${DATA_PATH}/data/mediaplayer.db\"|g" \
-        -e "s|cache_dir: \"./data/cache\"|cache_dir: \"${DATA_PATH}/data/cache\"|g" \
+        -e "s|path: \"./data/mediaplayer.db\"|path: \"${DATA_DIR}/data/mediaplayer.db\"|g" \
+        -e "s|cache_dir: \"./data/cache\"|cache_dir: \"${DATA_DIR}/data/cache\"|g" \
         "${TEMPLATE_FILE}" >"${TARGET_CONFIG}"
 
-    # 记录端口号
-    echo "${PORT}" >"${DATA_DIR}/server_port"
+    # 记录数据路径和端口号
+    echo "${DATA_DIR}" > "${TARGET_DIR}/var/data_path"
+    echo "${PORT}" > "${TARGET_DIR}/var/server_port"
+
     echo "配置生成完成: 端口 ${PORT}"
+    echo "数据目录: ${DATA_DIR}"
+    echo "配置文件: ${TARGET_CONFIG}"
 else
     echo "警告：未找到配置模板"
 fi

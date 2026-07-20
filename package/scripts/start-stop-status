@@ -1,15 +1,23 @@
 #!/bin/sh
 
 # MediaPlayer Synology Package - start-stop-status script
-# Reference: fnOS mediaplayer cmd/main
 
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
 DAEMON="${TARGET_DIR}/bin/mediaplayer"
-CONFIG_FILE="${TARGET_DIR}/var/config.yaml"
-DATA_DIR="${TARGET_DIR}/var"
-LOG_FILE="${DATA_DIR}/mediaplayer.log"
-PID_FILE="${DATA_DIR}/mediaplayer.pid"
+DATA_DIR_FILE="${TARGET_DIR}/var/data_path"
+LOG_FILE="${TARGET_DIR}/var/mediaplayer.log"
+PID_FILE="${TARGET_DIR}/var/mediaplayer.pid"
+
+# Read data path from saved file, fallback to default
+if [ -f "${DATA_DIR_FILE}" ]; then
+    DATA_DIR=$(cat "${DATA_DIR_FILE}" | tr -d '
+')
+else
+    DATA_DIR="/volume1/MediaPlayerData"
+fi
+
+CONFIG_FILE="${DATA_DIR}/config/config.yaml"
 
 log_msg() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >>"${LOG_FILE}"
@@ -42,8 +50,8 @@ start_process() {
     fi
 
     log_msg "========== STARTING =========="
-    mkdir -p "${DATA_DIR}/data"
-    mkdir -p "$(dirname "${LOG_FILE}")"
+    mkdir -p "${TARGET_DIR}/var"
+    mkdir -p "${DATA_DIR}/data/cache"
 
     if [ ! -f "${DAEMON}" ]; then
         fail "Binary not found: ${DAEMON}"
@@ -52,19 +60,19 @@ start_process() {
 
     chmod +x "${DAEMON}"
 
-    # Use config from var if exists, otherwise copy from template
+    # Ensure config exists
     if [ ! -f "${CONFIG_FILE}" ]; then
         if [ -f "${TARGET_DIR}/etc/config.yaml.template" ]; then
             cp "${TARGET_DIR}/etc/config.yaml.template" "${CONFIG_FILE}"
-        elif [ -f "${TARGET_DIR}/etc/config.yaml" ]; then
-            cp "${TARGET_DIR}/etc/config.yaml" "${CONFIG_FILE}"
         fi
     fi
 
     log_msg "Exec: ${DAEMON}"
+    log_msg "Data dir: ${DATA_DIR}"
+    log_msg "Config: ${CONFIG_FILE}"
 
-    # Run from target dir so binary can find web/ directory
-    cd "${TARGET_DIR}"
+    # Run from data directory so binary can find config and data
+    cd "${DATA_DIR}"
 
     export LD_LIBRARY_PATH="${TARGET_DIR}/lib:${LD_LIBRARY_PATH:-}"
 
@@ -133,7 +141,6 @@ case "$1" in
         fi
         ;;
     prestart|prestop)
-        # DSM 7.0+ calls these before start/stop for pre-checks
         exit 0
         ;;
     *)

@@ -3,20 +3,12 @@
         "step_title": "MediaPlayer 升级",
         "items": [
             {
-                "desc": "升级将保留您的配置和数据。如需修改请填写以下字段（留空保持不变）。"
-            },
-            {
                 "type": "textfield",
-                "desc": "修改配置（可选）",
+                "desc": "数据存储路径（升级后数据保留在此目录，如需修改请填写新路径）",
                 "subitems": [
                     {
-                        "key": "server_port",
-                        "desc": "服务端口（留空不变）",
-                        "defaultValue": ""
-                    },
-                    {
-                        "key": "admin_password",
-                        "desc": "密码（留空不变）",
+                        "key": "data_path",
+                        "desc": "数据目录路径（留空保持不变）",
                         "defaultValue": ""
                     }
                 ]
