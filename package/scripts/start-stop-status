@@ -67,25 +67,27 @@ start_process() {
     if [ ! -f "${CONFIG_FILE}" ]; then
         if [ -f "${CONFIG_TEMPLATE}" ]; then
             cp "${CONFIG_TEMPLATE}" "${CONFIG_FILE}"
-            log_msg "Config copied from template"
+            log_msg "Config copied from template (relative paths)"
         else
             fail "Config not found: ${CONFIG_FILE} and no template at ${CONFIG_TEMPLATE}"
             return 1
         fi
     fi
 
-    # === 符号链接方案 ===
-    # 二进制从 cwd 读取 config.yaml，配置中使用相对路径 ./data/
-    # 通过符号链接将 ./data 指向用户数据目录
-    ln -sf "${DATA_DIR}/data" "${TARGET_DIR}/var/data"
-    ln -sf "${DATA_DIR}/config/config.yaml" "${TARGET_DIR}/var/config.yaml"
+    # 检查配置中是否还有相对路径，如果有则修复为绝对路径
+    if grep -q '"\./data/' "${CONFIG_FILE}" 2>/dev/null; then
+        log_msg "Fixing relative paths in config..."
+        sed -i "s|path: \"\./data/|path: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
+        sed -i "s|cache_dir: \"\./data/|cache_dir: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
+    fi
 
     log_msg "Exec: ${DAEMON}"
     log_msg "Data dir: ${DATA_DIR}"
     log_msg "Config: ${CONFIG_FILE}"
 
-    # cd 到 var 目录，二进制读取 cwd 下的 config.yaml，./data 通过符号链接指向用户数据目录
-    cd "${TARGET_DIR}/var"
+    # 直接在数据目录下运行二进制
+    # 二进制从 cwd 读取 config.yaml，./data/ 就是数据目录本身
+    cd "${DATA_DIR}"
 
     export LD_LIBRARY_PATH="${TARGET_DIR}/lib:${LD_LIBRARY_PATH:-}"
 
