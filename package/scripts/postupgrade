@@ -46,7 +46,7 @@ if [ -f "${CONFIG_FILE}" ]; then
     fi
 fi
 
-chown -R "${PACKAGE_USER}:users" "${DATA_DIR}"
+chown -R "${PACKAGE_USER}" "${DATA_DIR}"
 chmod -R 775 "${DATA_DIR}"
 
 echo "MediaPlayer 升级完成！"

@@ -10,8 +10,7 @@ echo "Post-uninstall: ${PACKAGE_NAME}"
 
 # Read data path
 if [ -f "${DATA_DIR_FILE}" ]; then
-    DATA_DIR=$(cat "${DATA_DIR_FILE}" | tr -d '
-')
+    DATA_DIR=$(cat "${DATA_DIR_FILE}" | tr -d '\n')
 else
     DATA_DIR="/volume1/MediaPlayerData"
 fi
