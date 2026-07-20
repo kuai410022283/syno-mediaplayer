@@ -20,7 +20,7 @@ fi
 
 LOG_FILE="${DATA_DIR}/mediaplayer.log"
 PID_FILE="${DATA_DIR}/mediaplayer.pid"
-CONFIG_FILE="${DATA_DIR}/config/config.yaml"
+CONFIG_FILE="${DATA_DIR}/config.yaml"
 CONFIG_TEMPLATE="${TARGET_DIR}/etc/config.yaml.template"
 
 log_msg() {
@@ -66,7 +66,6 @@ start_process() {
 
     # 确保用户数据目录存在
     mkdir -p "${DATA_DIR}/data/cache"
-    mkdir -p "${DATA_DIR}/config"
     mkdir -p "${DATA_DIR}/library"
 
     # 处理 web 静态资源目录（解决 TARGET_DIR 只读问题以及 download 目录需写权限的问题）

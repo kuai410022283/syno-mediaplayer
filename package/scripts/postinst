@@ -21,10 +21,9 @@ chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 
 # 2. 创建数据目录结构（DSM 7 标准路径）
 mkdir -p "${DATA_DIR}/data/cache"
-mkdir -p "${DATA_DIR}/config"
 
 # 3. 生成或保留配置文件（绝对路径）
-TARGET_CONFIG="${DATA_DIR}/config/config.yaml"
+TARGET_CONFIG="${DATA_DIR}/config.yaml"
 
 if [ -f "${TARGET_CONFIG}" ]; then
     echo "发现已存在的配置文件，保留原有配置（升级模式）"
