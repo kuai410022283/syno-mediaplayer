@@ -5,6 +5,7 @@
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
 DATA_DIR_FILE="${TARGET_DIR}/var/data_path"
+PACKAGE_USER="sc-MediaPlayer"
 
 echo "MediaPlayer 升级处理中..."
 
@@ -13,8 +14,7 @@ chmod +x "${TARGET_DIR}/bin/mediaplayer" 2>/dev/null || true
 
 # 2. 读取数据路径
 if [ -f "${DATA_DIR_FILE}" ]; then
-    DATA_DIR=$(cat "${DATA_DIR_FILE}" | tr -d '
-')
+    DATA_DIR=$(cat "${DATA_DIR_FILE}" | tr -d '\n')
 else
     DATA_DIR="/volume1/MediaPlayerData"
 fi
@@ -44,7 +44,12 @@ if [ -f "${CONFIG_FILE}" ]; then
     # 确保数据库路径指向正确的数据目录
     sed -i "s|path: \"\./data/|path: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
     sed -i "s|cache_dir: \"\./data/|cache_dir: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
+    echo "配置文件路径已更新"
 fi
+
+# 6. 确保包用户拥有数据目录的写权限
+chown -R "${PACKAGE_USER}:users" "${DATA_DIR}"
+chmod -R 775 "${DATA_DIR}"
 
 echo "MediaPlayer 升级完成！"
 exit 0

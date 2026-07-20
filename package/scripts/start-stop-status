@@ -64,6 +64,19 @@ start_process() {
     if [ ! -f "${CONFIG_FILE}" ]; then
         if [ -f "${TARGET_DIR}/etc/config.yaml.template" ]; then
             cp "${TARGET_DIR}/etc/config.yaml.template" "${CONFIG_FILE}"
+            log_msg "Config copied from template"
+        elif [ -f "${TARGET_DIR}/etc/config.yaml" ]; then
+            cp "${TARGET_DIR}/etc/config.yaml" "${CONFIG_FILE}"
+            log_msg "Config copied from etc/config.yaml"
+        fi
+    fi
+
+    # 修复配置中的相对路径为绝对路径（防止 sed 替换遗漏）
+    if [ -f "${CONFIG_FILE}" ]; then
+        if grep -q '"\./data/' "${CONFIG_FILE}" 2>/dev/null; then
+            log_msg "Fixing relative paths in config..."
+            sed -i "s|path: \"\./data/|path: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
+            sed -i "s|cache_dir: \"\./data/|cache_dir: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
         fi
     fi
 
@@ -71,7 +84,13 @@ start_process() {
     log_msg "Data dir: ${DATA_DIR}"
     log_msg "Config: ${CONFIG_FILE}"
 
-    # Run from data directory so binary can find config and data
+    # 确保配置文件存在
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        fail "Config file not found: ${CONFIG_FILE}"
+        return 1
+    fi
+
+    # 二进制从数据目录启动，读取同目录下的 config.yaml
     cd "${DATA_DIR}"
 
     export LD_LIBRARY_PATH="${TARGET_DIR}/lib:${LD_LIBRARY_PATH:-}"

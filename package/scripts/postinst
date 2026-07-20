@@ -7,6 +7,7 @@
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
 DATA_DIR="${data_path:-/volume1/MediaPlayerData}"
+PACKAGE_USER="sc-MediaPlayer"
 
 echo "开始安装 MediaPlayer..."
 echo "数据目录: ${DATA_DIR}"
@@ -15,9 +16,13 @@ echo "数据目录: ${DATA_DIR}"
 chmod +x "${TARGET_DIR}/bin/mediaplayer" 2>/dev/null || true
 chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 
-# 2. 创建数据目录结构
+# 2. 创建数据目录结构并设置权限
 mkdir -p "${DATA_DIR}/data/cache"
 mkdir -p "${DATA_DIR}/config"
+
+# 确保包用户拥有数据目录的写权限
+chown -R "${PACKAGE_USER}:users" "${DATA_DIR}"
+chmod -R 775 "${DATA_DIR}"
 
 # 3. 从向导获取参数，生成配置文件
 TEMPLATE_FILE="${TARGET_DIR}/etc/config.yaml.template"
@@ -34,12 +39,21 @@ if [ -f "${TEMPLATE_FILE}" ]; then
     fi
 
     # 替换配置（使用绝对路径）
-    sed -e "s|port: 9527|port: ${PORT}|g" \
+    if sed -e "s|port: 9527|port: ${PORT}|g" \
         -e "s|admin_password: \"admin123\"|admin_password: \"${ADMIN_PWD}\"|g" \
         -e "s|secret: \"mediaplayer-change-this-secret-key\"|secret: \"${SECRET_KEY}\"|g" \
         -e "s|path: \"./data/mediaplayer.db\"|path: \"${DATA_DIR}/data/mediaplayer.db\"|g" \
         -e "s|cache_dir: \"./data/cache\"|cache_dir: \"${DATA_DIR}/data/cache\"|g" \
-        "${TEMPLATE_FILE}" >"${TARGET_CONFIG}"
+        "${TEMPLATE_FILE}" >"${TARGET_CONFIG}"; then
+        echo "配置文件 sed 替换成功"
+    else
+        echo "错误：sed 替换失败，回退到直接复制"
+        cp "${TEMPLATE_FILE}" "${TARGET_CONFIG}"
+    fi
+
+    # 确保配置文件属于包用户
+    chown "${PACKAGE_USER}:users" "${TARGET_CONFIG}"
+    chmod 664 "${TARGET_CONFIG}"
 
     # 记录数据路径和端口号
     echo "${DATA_DIR}" > "${TARGET_DIR}/var/data_path"
@@ -49,8 +63,23 @@ if [ -f "${TEMPLATE_FILE}" ]; then
     echo "数据目录: ${DATA_DIR}"
     echo "配置文件: ${TARGET_CONFIG}"
 else
-    echo "警告：未找到配置模板"
+    echo "警告：未找到配置模板 (${TEMPLATE_FILE})"
+    echo "尝试从 target/etc 查找..."
+    # 备用路径
+    if [ -f "${TARGET_DIR}/etc/config.yaml.template" ]; then
+        cp "${TARGET_DIR}/etc/config.yaml.template" "${TARGET_CONFIG}"
+        chown "${PACKAGE_USER}:users" "${TARGET_CONFIG}"
+        echo "从备用路径复制配置成功"
+    else
+        echo "错误：所有配置模板路径均未找到"
+    fi
 fi
+
+# 最终校验：确保数据目录权限正确
+echo "校验数据目录权限..."
+ls -la "${DATA_DIR}/"
+ls -la "${DATA_DIR}/data/" 2>/dev/null || true
+ls -la "${DATA_DIR}/config/" 2>/dev/null || true
 
 echo "MediaPlayer 安装完成！"
 exit 0
