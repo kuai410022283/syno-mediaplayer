@@ -5,7 +5,7 @@
             "desc": "MediaPlayer Streaming Center",
             "icon": "images/icon_{0}.png",
             "type": "url",
-            "url": "http://{host}:{{PORT}}/admin",
+            "url": "http://{{host}}:{{PORT}}/admin",
             "allUsers": true,
             "grantPrivilege": "all",
             "advanceGrantPrivilege": true
