@@ -1,0 +1,150 @@
+#!/bin/sh
+
+# MediaPlayer Synology Package - start-stop-status script
+
+PACKAGE_NAME="MediaPlayer"
+TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
+DAEMON="${TARGET_DIR}/bin/mediaplayer"
+DATA_DIR_FILE="${TARGET_DIR}/var/data_path"
+LOG_FILE="${TARGET_DIR}/var/mediaplayer.log"
+PID_FILE="${TARGET_DIR}/var/mediaplayer.pid"
+
+# Read data path from saved file, fallback to default
+if [ -f "${DATA_DIR_FILE}" ]; then
+    DATA_DIR=$(cat "${DATA_DIR_FILE}" | tr -d '
+')
+else
+    DATA_DIR="/volume1/MediaPlayerData"
+fi
+
+CONFIG_FILE="${DATA_DIR}/config/config.yaml"
+
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >>"${LOG_FILE}"
+}
+
+fail() {
+    local msg="$1"
+    log_msg "FAIL: ${msg}"
+    if [ -n "${SYNOPKG_TEMP_LOGFILE:-}" ]; then
+        echo "${msg}" >"${SYNOPKG_TEMP_LOGFILE}"
+    fi
+    return 1
+}
+
+status() {
+    if [ -f "${PID_FILE}" ]; then
+        local pid
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+        if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+start_process() {
+    if status; then
+        log_msg "Process already running (PID $(head -n 1 "${PID_FILE}"))"
+        return 0
+    fi
+
+    log_msg "========== STARTING =========="
+    mkdir -p "${TARGET_DIR}/var"
+    mkdir -p "${DATA_DIR}/data/cache"
+
+    if [ ! -f "${DAEMON}" ]; then
+        fail "Binary not found: ${DAEMON}"
+        return 1
+    fi
+
+    chmod +x "${DAEMON}"
+
+    # Ensure config exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        if [ -f "${TARGET_DIR}/etc/config.yaml.template" ]; then
+            cp "${TARGET_DIR}/etc/config.yaml.template" "${CONFIG_FILE}"
+        fi
+    fi
+
+    log_msg "Exec: ${DAEMON}"
+    log_msg "Data dir: ${DATA_DIR}"
+    log_msg "Config: ${CONFIG_FILE}"
+
+    # Run from data directory so binary can find config and data
+    cd "${DATA_DIR}"
+
+    export LD_LIBRARY_PATH="${TARGET_DIR}/lib:${LD_LIBRARY_PATH:-}"
+
+    nohup "${DAEMON}" >"${LOG_FILE}" 2>&1 &
+    local newpid=$!
+    echo "${newpid}" >"${PID_FILE}"
+
+    sleep 2
+    if kill -0 "${newpid}" 2>/dev/null; then
+        log_msg "Started successfully (PID: ${newpid})"
+        return 0
+    else
+        fail "Failed to start. Check log: ${LOG_FILE}"
+        return 1
+    fi
+}
+
+stop_process() {
+    if ! status; then
+        log_msg "Process not running"
+        rm -f "${PID_FILE}"
+        return 0
+    fi
+
+    log_msg "========== STOPPING =========="
+    local pid
+    pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+
+    if [ -n "${pid}" ]; then
+        log_msg "Sending SIGTERM to PID ${pid}"
+        kill "${pid}" 2>/dev/null
+
+        local timeout=10
+        while [ ${timeout} -gt 0 ] && kill -0 "${pid}" 2>/dev/null; do
+            sleep 1
+            timeout=$((timeout - 1))
+        done
+
+        if kill -0 "${pid}" 2>/dev/null; then
+            log_msg "Force killing PID ${pid}"
+            kill -9 "${pid}" 2>/dev/null
+        fi
+    fi
+
+    rm -f "${PID_FILE}"
+    log_msg "Stopped"
+    return 0
+}
+
+case "$1" in
+    start)
+        start_process
+        exit $?
+        ;;
+    stop)
+        stop_process
+        exit 0
+        ;;
+    status)
+        if status; then
+            echo "MediaPlayer is running (PID: $(head -n 1 "${PID_FILE}"))"
+            exit 0
+        else
+            echo "MediaPlayer is not running"
+            exit 1
+        fi
+        ;;
+    prestart|prestop)
+        exit 0
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|status|prestart|prestop}"
+        exit 1
+        ;;
+esac

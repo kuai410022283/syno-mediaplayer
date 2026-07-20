@@ -1,0 +1,17 @@
+# Build artifacts
+*.spk
+*.sha256
+src/mediaplayer
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temp
+/tmp/

@@ -1,0 +1,30 @@
+# MediaPlayer 配置文件模板
+# 安装时由 postinst 脚本根据向导输入自动生成最终配置
+# ⚠️ 请勿直接修改此文件，修改请通过 DSM 套件中心的"设置"功能
+
+server:
+  host: "0.0.0.0"
+  port: 9527
+
+database:
+  path: "./data/mediaplayer.db"
+
+stream:
+  cache_dir: "./data/cache"
+  max_concurrent: 1000
+  buffer_size: 8192
+
+auth:
+  # 安装时自动生成随机密钥
+  secret: "mediaplayer-change-this-secret-key"
+  expire_hours: 720
+  admin_password: "admin123"
+
+cors:
+  allowed_origins:
+    - "*"
+
+rate_limit:
+  api: 1000
+  logo: 1000
+  stream: 2000

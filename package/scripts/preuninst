@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# Pre-uninstallation script for MediaPlayer
+
+PACKAGE_NAME="MediaPlayer"
+
+echo "Pre-uninstall: Stopping ${PACKAGE_NAME}..."
+/var/packages/${PACKAGE_NAME}/scripts/start-stop-status stop 2>/dev/null
+
+exit 0

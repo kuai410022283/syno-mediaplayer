@@ -1,0 +1,255 @@
+# ==========================================
+# 原文件中 build job 完全不动
+# 只替换 release job 的步骤 3 和新增 fallback
+# ==========================================
+
+name: Build SPK
+
+on:
+  workflow_dispatch:
+    inputs:
+      mediaplayer_version:
+        description: 'mediaplayer version (e.g. v1.1.10)'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+env:
+  MEDIAPLAYER_REPO: kuai410022283/mediaplayer
+  PACKAGE_NAME: MediaPlayer
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - spk_arch: x86_64
+            go_arch: amd64
+            arch_family: x86_64
+          - spk_arch: x86_64
+            go_arch: arm64
+            arch_family: aarch64
+          - spk_arch: x86_64
+            go_arch: arm-armv7l
+            arch_family: armv7l
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.mediaplayer_version }}" ]; then
+            echo "version=${{ github.event.inputs.mediaplayer_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download mediaplayer release
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          GO_ARCH="${{ matrix.go_arch }}"
+          FILENAME="mediaplayer-linux-${GO_ARCH}.tar.gz"
+          DOWNLOAD_URL="https://github.com/${MEDIAPLAYER_REPO}/releases/download/${VERSION}/${FILENAME}"
+
+          echo "Downloading: ${DOWNLOAD_URL}"
+          curl -fSL -o "${FILENAME}" "${DOWNLOAD_URL}"
+
+          mkdir -p src
+          tar xzf "${FILENAME}" -C src --strip-components=1
+
+          echo "=== Release contents ==="
+          ls -la src/
+          echo "=== Web files ==="
+          ls -la src/web/ 2>/dev/null || echo "No web directory"
+          echo "=== Binary ==="
+          ls -la src/mediaplayer
+
+      - name: Download icons from fnOS project
+        run: |
+          ICON_SHA="e21eda8d71357fbb57a8d0d689143259f62b8604"
+          curl -sL --max-time 30 \
+            -H "Accept: application/vnd.github.v3.raw" \
+            "https://api.github.com/repos/Brian099/fn_fpk_packages/git/blobs/${ICON_SHA}" \
+            -o package/PACKAGE_ICON_256.PNG
+          cp package/PACKAGE_ICON_256.PNG package/PACKAGE_ICON.PNG
+
+      - name: Build SPK (official structure)
+        id: build_spk
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SPK_VERSION="${VERSION#v}"
+          SYNO_ARCH="${{ matrix.spk_arch }}"
+          SPK_NAME="${PACKAGE_NAME}-${{ matrix.arch_family }}-${SPK_VERSION}.spk"
+
+          # Step 1: Build package.tgz
+          PKG_TGZ_DIR="/tmp/_package_tgz"
+          rm -rf "${PKG_TGZ_DIR}"
+
+          mkdir -p "${PKG_TGZ_DIR}/bin"
+          cp src/mediaplayer "${PKG_TGZ_DIR}/bin/"
+          chmod +x "${PKG_TGZ_DIR}/bin/mediaplayer"
+
+          if [ -d src/web ]; then
+            cp -r src/web "${PKG_TGZ_DIR}/web"
+            echo "Web files copied:"
+            find "${PKG_TGZ_DIR}/web" -type f | head -10
+          else
+            echo "::warning::No web directory in release"
+          fi
+
+          mkdir -p "${PKG_TGZ_DIR}/etc"
+          if [ -f src/config.yaml ]; then
+            cp src/config.yaml "${PKG_TGZ_DIR}/etc/config.yaml.template"
+            cp src/config.yaml "${PKG_TGZ_DIR}/etc/config.yaml"
+            echo "Config from release"
+          else
+            cp package/conf/config.yaml.template "${PKG_TGZ_DIR}/etc/config.yaml.template"
+            cp package/conf/config.yaml.template "${PKG_TGZ_DIR}/etc/config.yaml"
+            echo "Config from project template"
+          fi
+
+          cp -r package/ui "${PKG_TGZ_DIR}/ui"
+
+          cd "${PKG_TGZ_DIR}"
+          tar czf "/tmp/package.tgz" .
+          cd -
+
+          # Step 2: Build SPK
+          SPK_DIR="/tmp/_spk"
+          rm -rf "${SPK_DIR}"
+          mkdir -p "${SPK_DIR}"
+
+          sed -e "s/{{VERSION}}/${SPK_VERSION}/g" \
+              -e "s/arch=\"\"/arch=\"${SYNO_ARCH}\"/g" \
+              package/INFO > "${SPK_DIR}/INFO"
+
+          cp /tmp/package.tgz "${SPK_DIR}/package.tgz"
+          cp package/PACKAGE_ICON.PNG "${SPK_DIR}/PACKAGE_ICON.PNG"
+          cp package/PACKAGE_ICON_256.PNG "${SPK_DIR}/PACKAGE_ICON_256.PNG"
+
+          cp -r package/scripts "${SPK_DIR}/scripts"
+          chmod +x "${SPK_DIR}/scripts/"*
+
+          mkdir -p "${SPK_DIR}/conf"
+          cp package/spk_conf/privilege "${SPK_DIR}/conf/privilege"
+
+          if [ -d package/wizard ] && [ "$(ls -A package/wizard)" ]; then
+            mkdir -p "${SPK_DIR}/WIZARD_UIFILES"
+            cp package/wizard/* "${SPK_DIR}/WIZARD_UIFILES/"
+          fi
+
+          # Step 3: Create SPK
+          cd "${SPK_DIR}"
+          FILES_TO_PACK="INFO package.tgz PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG scripts conf"
+          [ -d WIZARD_UIFILES ] && FILES_TO_PACK="${FILES_TO_PACK} WIZARD_UIFILES"
+          [ -f LICENSE ] && FILES_TO_PACK="${FILES_TO_PACK} LICENSE"
+          tar cf "/tmp/${SPK_NAME}" ${FILES_TO_PACK}
+          cd -
+
+          echo "=== SPK contents ==="
+          tar tf "/tmp/${SPK_NAME}"
+          echo "=== INFO ==="
+          tar xf "/tmp/${SPK_NAME}" INFO -O
+          echo "=== package.tgz size ==="
+          ls -la /tmp/package.tgz
+
+          sha256sum "/tmp/${SPK_NAME}" > "/tmp/${SPK_NAME}.sha256"
+
+          echo "spk_path=/tmp/${SPK_NAME}" >> $GITHUB_OUTPUT
+          echo "spk_name=${SPK_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.arch_family }}-spk
+          path: |
+            ${{ steps.build_spk.outputs.spk_path }}
+            ${{ steps.build_spk.outputs.spk_path }}.sha256
+          retention-days: 5
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+
+    permissions:
+      contents: write
+      actions: write
+      id-token: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect release files
+        run: |
+          find artifacts -type f \( -name '*.spk' -o -name '*.sha256' \) -exec cp {} . \;
+          echo "=== Release files ==="
+          ls -la *.spk *.sha256 2>/dev/null
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [ -n "${{ github.event.inputs.mediaplayer_version }}" ]; then
+            echo "tag=spk-${{ github.event.inputs.mediaplayer_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release with retry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+
+          # 写 release notes 到临时文件
+          cat > /tmp/release-notes.md << 'NOTES'
+          Synology SPK packages for MediaPlayer
+
+          ### Supported Architectures
+          | Architecture | File | Synology Models |
+          |---|---|---|
+          | x86_64 | `MediaPlayer-x86_64-*.spk` | DS918+, DS920+, DS1522+, DS720+, DS923+, etc. |
+          | aarch64 | `MediaPlayer-aarch64-*.spk` | DS220+, DS723+, RS822+, etc. |
+          | armv7l | `MediaPlayer-armv7l-*.spk` | Older ARM models (DS216, etc.) |
+
+          ### Installation
+          1. Download the SPK for your NAS architecture
+          2. Open Synology DSM → Package Center → Manual Install
+          3. Select the downloaded .spk file
+          4. Follow the installation wizard
+          NOTES
+
+          # 创建 release 并上传文件，最多重试 5 次
+          for i in 1 2 3 4 5; do
+            echo "=== Attempt $i: Creating release $TAG ==="
+            gh release create "$TAG" \
+              --title "SPK $TAG" \
+              --notes-file /tmp/release-notes.md \
+              --draft=false \
+              --prerelease=false \
+              *.spk *.sha256 && break
+            echo "Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
+
+      - name: Upload missed assets (fallback)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          for file in *.spk *.sha256; do
+            for i in 1 2 3 4 5; do
+              echo "Upload attempt $i for $file"
+              gh release upload "$TAG" "$file" --clobber && break
+              sleep 15
+            done
+          done

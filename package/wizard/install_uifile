@@ -1,0 +1,49 @@
+[
+    {
+        "step_title": "MediaPlayer 安装配置",
+        "items": [
+            {
+                "type": "textfield",
+                "desc": "Web 管理面板端口",
+                "subitems": [
+                    {
+                        "key": "server_port",
+                        "desc": "服务端口",
+                        "defaultValue": "9527",
+                        "validator": {
+                            "allowBlank": false
+                        }
+                    }
+                ]
+            },
+            {
+                "type": "textfield",
+                "desc": "管理员密码",
+                "subitems": [
+                    {
+                        "key": "admin_password",
+                        "desc": "密码",
+                        "defaultValue": "admin123",
+                        "validator": {
+                            "allowBlank": false
+                        }
+                    }
+                ]
+            },
+            {
+                "type": "textfield",
+                "desc": "数据存储路径（数据库、配置、缓存将保存在此目录，升级不会丢失）",
+                "subitems": [
+                    {
+                        "key": "data_path",
+                        "desc": "数据目录路径",
+                        "defaultValue": "/volume1/MediaPlayerData",
+                        "validator": {
+                            "allowBlank": false
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+]
