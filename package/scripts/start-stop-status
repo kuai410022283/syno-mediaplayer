@@ -126,7 +126,8 @@ start_process() {
 
 stop_process() {
     if ! status; then
-        log_msg "Process not running"
+        log_msg "Process not running via PID file. Attempting zombie cleanup..."
+        pkill -f "bin/mediaplayer" 2>/dev/null || killall mediaplayer 2>/dev/null || true
         rm -f "${PID_FILE}"
         return 0
     fi
