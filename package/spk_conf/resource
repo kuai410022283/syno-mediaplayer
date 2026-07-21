@@ -1,8 +1,5 @@
 {
-    "shared-folder": {
-        "MediaPlayer": {
-            "description": "MediaPlayer Shared Data",
-            "worker_name": "sc-MediaPlayer"
-        }
+    "data-share": {
+        "share_name": "MediaPlayer"
     }
 }
