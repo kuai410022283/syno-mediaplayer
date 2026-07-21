@@ -7,4 +7,13 @@ PACKAGE_NAME="MediaPlayer"
 echo "Pre-uninstall: Stopping ${PACKAGE_NAME}..."
 /var/packages/${PACKAGE_NAME}/scripts/start-stop-status stop 2>/dev/null
 
+# 群晖在卸载时会无差别删除 @appdata 目录，我们需要在此之前拦截并备份
+if [ "${keep_data}" = "true" ]; then
+    echo "用户选择了保留数据，正在将数据备份到安全位置..."
+    REAL_VAR=$(readlink -f /var/packages/${PACKAGE_NAME}/var)
+    if [ -d "${REAL_VAR}" ]; then
+        cp -a "${REAL_VAR}" "${REAL_VAR}_backup"
+    fi
+fi
+
 exit 0

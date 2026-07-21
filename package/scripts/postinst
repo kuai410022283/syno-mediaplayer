@@ -22,6 +22,16 @@ chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 # 2. 创建数据目录结构（DSM 7 标准路径）
 mkdir -p "${DATA_DIR}/data/cache"
 
+# 尝试从之前的备份恢复数据（卸载时如果选择了保留，数据会在 _backup 里）
+REAL_VAR=$(readlink -f "${DATA_DIR}")
+BACKUP_DIR="${REAL_VAR}_backup"
+if [ -d "${BACKUP_DIR}" ]; then
+    echo "发现卸载时保留的数据备份，正在恢复..."
+    cp -a "${BACKUP_DIR}/"* "${DATA_DIR}/" 2>/dev/null || true
+    rm -rf "${BACKUP_DIR}"
+    chown -R "${PACKAGE_USER}" "${DATA_DIR}"
+fi
+
 # 3. 生成或保留配置文件（绝对路径）
 TARGET_CONFIG="${DATA_DIR}/config.yaml"
 
