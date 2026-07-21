@@ -138,6 +138,7 @@ jobs:
           cp /tmp/package.tgz "${SPK_DIR}/package.tgz"
           cp package/PACKAGE_ICON.PNG "${SPK_DIR}/PACKAGE_ICON.PNG"
           cp package/PACKAGE_ICON_256.PNG "${SPK_DIR}/PACKAGE_ICON_256.PNG"
+          [ -f LICENSE ] && cp LICENSE "${SPK_DIR}/LICENSE"
 
           cp -r package/scripts "${SPK_DIR}/scripts"
           chmod +x "${SPK_DIR}/scripts/"*
@@ -155,7 +156,7 @@ jobs:
           cd "${SPK_DIR}"
 
           # Fix line endings (Synology strictly requires LF for INFO and scripts)
-          find . -type f -name "INFO" -exec sed -i 's/\r$//' {} +
+          find . -type f -name "INFO" -o -name "LICENSE" -exec sed -i 's/\r$//' {} +
           find scripts conf WIZARD_UIFILES -type f -exec sed -i 's/\r$//' {} + 2>/dev/null || true
 
           FILES_TO_PACK="INFO package.tgz PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG scripts conf"
