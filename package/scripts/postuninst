@@ -4,23 +4,24 @@
 # 卸载后执行，用于清理持久化数据（如果用户选择了彻底删除）
 
 PACKAGE_NAME="MediaPlayer"
-# DSM 7 的原生数据持久化目录
-DATA_DIR="${SYNOPKG_PKGVAR:-/var/packages/${PACKAGE_NAME}/var}"
+# 我们将数据存放至对用户可见的共享文件夹：
+DATA_DIR="${SYNOPKG_PKGDEST_VOL}/MediaPlayer"
 
 echo "========== MediaPlayer Post-Uninstall =========="
 
 # 检查向导传过来的 delete_data 环境变量
 if [ "${delete_data}" = "true" ]; then
-    echo "用户选择了彻底删除数据，开始清理: ${DATA_DIR}"
+    echo "用户选择了彻底删除数据，开始清理共享文件夹: ${DATA_DIR}"
     if [ -d "${DATA_DIR}" ]; then
-        rm -rf "${DATA_DIR}"
-        echo "数据目录已彻底清理。"
+        # 仅清空内容，保留共享文件夹躯壳，避免打乱 DSM 的共享文件夹注册表
+        rm -rf "${DATA_DIR}"/*
+        echo "数据目录已彻底清空。"
     else
         echo "数据目录不存在，跳过清理。"
     fi
 else
     echo "用户选择了保留数据，或未执行卸载向导。"
-    echo "数据安全保存在: ${DATA_DIR}"
+    echo "数据安全保存在共享文件夹: ${DATA_DIR}"
 fi
 
 exit 0
