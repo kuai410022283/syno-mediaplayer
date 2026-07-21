@@ -20,6 +20,12 @@ echo "数据目录: ${DATA_DIR}"
 chmod +x "${TARGET_DIR}/bin/mediaplayer" 2>/dev/null || true
 chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 
+# 修复 DSM 7 data-share 默认不可见的问题
+# 为共享文件夹赋予 administrators 组完全控制权限，并激活 Windows ACL 支持
+echo "设置共享文件夹权限..."
+synoacltool -add "${DATA_DIR}" "group:administrators:allow:rwxpdDaARWc--:fd--" 2>/dev/null || true
+synoshare --setrw "MediaPlayer" "administrators" 2>/dev/null || true
+
 # 2. 创建数据目录结构（共享文件夹内部路径）
 mkdir -p "${DATA_DIR}/data/cache"
 
