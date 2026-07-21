@@ -9,11 +9,26 @@
         // postinst 安装时，会把下方的 {{PORT}} 替换成真实端口（如 5035）
         var port = "{{PORT}}";
         
-        // 动态拼装真实的 IP 和端口
-        var targetUrl = window.location.protocol + "//" + window.location.hostname + ":" + port + "/admin";
+        // Mediaplayer 后端默认运行在 HTTP
+        var protocol = "http:";
+        var targetUrl = protocol + "//" + window.location.hostname + ":" + port + "/admin";
         
-        // 直接在当前顶级窗口跳转，实现最极简的无缝体验
-        window.top.location.href = targetUrl;
+        // 尝试在新标签页打开
+        var newWin = window.open(targetUrl, '_blank');
+        
+        // 如果弹窗被拦截，提供手动跳转链接
+        if(!newWin || newWin.closed || typeof newWin.closed == 'undefined') {
+            document.write('<div style="text-align:center; margin-top: 100px; font-family: sans-serif;">');
+            document.write('<h2>MediaPlayer 管理面板</h2>');
+            document.write('<p>如果新窗口没有自动打开，请点击下方按钮：</p>');
+            document.write('<br><a href="' + targetUrl + '" target="_blank" style="padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">进入管理面板</a>');
+            document.write('</div>');
+        } else {
+            document.write('<div style="text-align:center; margin-top: 100px; font-family: sans-serif;">已在新的标签页中打开 MediaPlayer。</div>');
+            // 可选：如果希望自动关闭当前弹出框（部分浏览器不允许脚本关闭非脚本打开的窗口）
+            // window.close();
+        }
+
     </script>
 </body>
 </html>
