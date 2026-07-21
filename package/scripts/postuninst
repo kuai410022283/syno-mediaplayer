@@ -4,10 +4,14 @@
 # 卸载后执行，用于清理持久化数据（如果用户选择了彻底删除）
 
 PACKAGE_NAME="MediaPlayer"
-# 卸载时通过 target 真实路径提取 volume
-PKG_VOL=$(realpath "/var/packages/${PACKAGE_NAME}/target" | cut -d/ -f1,2)
-# 我们将数据存放至对用户可见的共享文件夹：
-DATA_DIR="${PKG_VOL}/MediaPlayer"
+# 卸载时如果是 data-share 依然有 SYNOPKG_SHARE_PATH 变量
+if [ -n "${SYNOPKG_SHARE_PATH}" ]; then
+    DATA_DIR="${SYNOPKG_SHARE_PATH}"
+else
+    # 兜底：卸载时 target 已经被删除，不能用 realpath。使用系统提供的变量截取。
+    PKG_VOL=$(echo "${SYNOPKG_PKGDEST}" | cut -d/ -f1,2)
+    DATA_DIR="${PKG_VOL}/MediaPlayer"
+fi
 
 echo "========== MediaPlayer Post-Uninstall =========="
 
