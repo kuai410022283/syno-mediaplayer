@@ -7,9 +7,11 @@ TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
 
 # DSM 7 标准环境变量
 # SYNOPKG_PKGVAR = /var/packages/<package>/var (系统隐藏的持久化数据目录)
-# SYNOPKG_PKGDEST_VOL = /volume1 (安装所在的存储空间)
+# DSM 7 标准环境变量中可能不包含 SYNOPKG_PKGDEST_VOL
+# 我们通过 target 的真实物理路径提取所在的 volume (如 /volume1)
+PKG_VOL=$(realpath "${TARGET_DIR}" | cut -d/ -f1,2)
 # 我们将数据存放至对用户可见的共享文件夹：
-DATA_DIR="${SYNOPKG_PKGDEST_VOL}/MediaPlayer"
+DATA_DIR="${PKG_VOL}/MediaPlayer"
 PACKAGE_USER="sc-MediaPlayer"
 
 echo "开始安装 MediaPlayer..."

@@ -4,8 +4,10 @@
 # 卸载后执行，用于清理持久化数据（如果用户选择了彻底删除）
 
 PACKAGE_NAME="MediaPlayer"
+# 卸载时通过 target 真实路径提取 volume
+PKG_VOL=$(realpath "/var/packages/${PACKAGE_NAME}/target" | cut -d/ -f1,2)
 # 我们将数据存放至对用户可见的共享文件夹：
-DATA_DIR="${SYNOPKG_PKGDEST_VOL}/MediaPlayer"
+DATA_DIR="${PKG_VOL}/MediaPlayer"
 
 echo "========== MediaPlayer Post-Uninstall =========="
 
