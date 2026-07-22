@@ -262,7 +262,7 @@ jobs:
           for i in 1 2 3 4 5; do
             echo "=== Attempt $i: Creating release $TAG ==="
             if gh release create "$TAG" --repo "${{ github.repository }}" \
-              --title "SPK $TAG" \
+              --title "MediaPlayer $TAG" \
               --notes-file /tmp/release-notes.md \
               --draft=false \
               --prerelease=false \
