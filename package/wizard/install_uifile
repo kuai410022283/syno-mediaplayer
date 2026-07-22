@@ -7,8 +7,8 @@
                 "desc": "数据与配置文件存储路径",
                 "subitems": [
                     {
-                        "key": "wizard_data_dir",
-                        "desc": "指定存储路径 (默认: /volume1/web_packages/MediaPlayer)",
+                        "key": "pkgwizard_data_dir",
+                        "desc": "指定存储路径",
                         "defaultValue": "/volume1/web_packages/MediaPlayer",
                         "validator": {
                             "allowBlank": false
@@ -21,7 +21,7 @@
                 "desc": "Web 管理面板端口",
                 "subitems": [
                     {
-                        "key": "server_port",
+                        "key": "pkgwizard_server_port",
                         "desc": "服务端口 (默认 9527)",
                         "defaultValue": "9527",
                         "validator": {
@@ -35,7 +35,7 @@
                 "desc": "管理员密码",
                 "subitems": [
                     {
-                        "key": "admin_password",
+                        "key": "pkgwizard_admin_password",
                         "desc": "后台登录密码 (默认 admin123)",
                         "defaultValue": "admin123",
                         "validator": {
