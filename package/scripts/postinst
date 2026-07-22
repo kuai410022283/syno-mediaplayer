@@ -21,8 +21,11 @@ get_data_dir() {
     REAL_TARGET=$(readlink -f "${TARGET_DIR}" 2>/dev/null || realpath "${TARGET_DIR}" 2>/dev/null || echo "${SYNOPKG_PKGDEST:-}")
     VOL_DIR=$(echo "${REAL_TARGET}" | awk -F'/' '{if ($2 ~ /^volume/) print "/"$2}')
     if [ -n "${VOL_DIR}" ] && [ -d "${VOL_DIR}" ]; then
-        echo "${VOL_DIR}/MediaPlayer"
-        return 0
+        TARGET_SHARE="${VOL_DIR}/MediaPlayer"
+        if mkdir -p "${TARGET_SHARE}" 2>/dev/null; then
+            echo "${TARGET_SHARE}"
+            return 0
+        fi
     fi
 
     echo "${SYNOPKG_PKGVAR:-/var/packages/${PACKAGE_NAME}/var}"
