@@ -90,9 +90,24 @@ if [ -f "${TARGET_CONFIG}" ]; then
     fi
 else
     echo "全新安装，生成配置文件..."
-    TEMPLATE_FILE="${TARGET_DIR}/etc/config.yaml.template"
-    PORT="${server_port:-9527}"
-    ADMIN_PWD="${admin_password:-admin123}"
+    SYNOGETKEY="/usr/syno/bin/synogetkeyvalue"
+    PORT=""
+    if [ -n "${SYNOPKG_TEMP_LOGFILE}" ] && [ -f "${SYNOPKG_TEMP_LOGFILE}" ] && [ -x "${SYNOGETKEY}" ]; then
+        PORT=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "pkgwizard_server_port" 2>/dev/null)
+        [ -z "${PORT}" ] && PORT=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "server_port" 2>/dev/null)
+    fi
+    [ -z "${PORT}" ] && PORT="${pkgwizard_server_port}"
+    [ -z "${PORT}" ] && PORT="${server_port}"
+    [ -z "${PORT}" ] && PORT="9527"
+
+    ADMIN_PWD=""
+    if [ -n "${SYNOPKG_TEMP_LOGFILE}" ] && [ -f "${SYNOPKG_TEMP_LOGFILE}" ] && [ -x "${SYNOGETKEY}" ]; then
+        ADMIN_PWD=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "pkgwizard_admin_password" 2>/dev/null)
+        [ -z "${ADMIN_PWD}" ] && ADMIN_PWD=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "admin_password" 2>/dev/null)
+    fi
+    [ -z "${ADMIN_PWD}" ] && ADMIN_PWD="${pkgwizard_admin_password}"
+    [ -z "${ADMIN_PWD}" ] && ADMIN_PWD="${admin_password}"
+    [ -z "${ADMIN_PWD}" ] && ADMIN_PWD="admin123"
 
     SECRET_KEY=$(head -c 32 /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32 2>/dev/null)
     if [ -z "${SECRET_KEY}" ]; then
