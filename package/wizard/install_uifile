@@ -1,19 +1,5 @@
 [
     {
-        "step_title": "存储共享文件夹设置",
-        "items": [
-            {
-                "type": "syndata_share",
-                "desc": "请选择数据与配置文件的存储共享文件夹 (推荐选择 web_packages):",
-                "subitems": [
-                    {
-                        "key": "wizard_share_path"
-                    }
-                ]
-            }
-        ]
-    },
-    {
         "step_title": "MediaPlayer 服务基础设置",
         "items": [
             {
@@ -22,7 +8,7 @@
                 "subitems": [
                     {
                         "key": "server_port",
-                        "desc": "服务端口",
+                        "desc": "服务端口 (默认 9527)",
                         "defaultValue": "9527",
                         "validator": {
                             "allowBlank": false
@@ -36,7 +22,7 @@
                 "subitems": [
                     {
                         "key": "admin_password",
-                        "desc": "密码",
+                        "desc": "后台登录密码 (默认 admin123)",
                         "defaultValue": "admin123",
                         "validator": {
                             "allowBlank": false
