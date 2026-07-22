@@ -8,6 +8,12 @@ DAEMON="${TARGET_DIR}/bin/mediaplayer"
 
 # 优先使用 File Station 中完全可见的 web_packages / web 共享目录
 get_data_dir() {
+    # 1. 优先使用 DSM 官方 usr-share 资源赋予的共享路径 (web_packages/MediaPlayer)
+    if [ -n "${SYNOPKG_SHARE_PATH}" ] && [ -d "${SYNOPKG_SHARE_PATH}" ]; then
+        echo "${SYNOPKG_SHARE_PATH}"
+        return 0
+    fi
+
     DATA_DIR_FILE="${TARGET_DIR}/var/data_path"
     if [ -f "${DATA_DIR_FILE}" ]; then
         SAVED_DIR=$(cat "${DATA_DIR_FILE}" | tr -d '\r\n')
@@ -31,11 +37,6 @@ get_data_dir() {
             fi
         fi
     done
-
-    if [ -n "${SYNOPKG_SHARE_PATH}" ] && [ -d "${SYNOPKG_SHARE_PATH}" ]; then
-        echo "${SYNOPKG_SHARE_PATH}"
-        return 0
-    fi
 
     SYNO_SHARE_GET=$(synoshare --get "${PACKAGE_NAME}" 2>/dev/null | grep -i "Path" | awk -F'[' '{print $2}' | tr -d ']')
     if [ -n "${SYNO_SHARE_GET}" ] && [ -d "${SYNO_SHARE_GET}" ]; then

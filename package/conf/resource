@@ -1,1 +1,10 @@
-{}
+{
+    "usr-share": {
+        "shares": [
+            {
+                "name": "web_packages",
+                "subpath": "MediaPlayer"
+            }
+        ]
+    }
+}
