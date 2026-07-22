@@ -1,6 +1,7 @@
 package="MediaPlayer"
 version="{{VERSION}}-0001"
 os_min_ver="7.0-40000"
+install_dep_packages="WebStation"
 displayname="MediaPlayer"
 description="智能电视流媒体中心，可将海量、杂乱的 M3U 直播源和 EPG 电子节目单，转化为如同有线电视般顺滑、有组织的观影体验。通过引入服务端鉴权与代理机制，帮助降低直播源被盗链、被抓包的风险。 功能亮点 1、安全防御（防盗链） 2、多端设备管控 3、大屏沉浸式体验 4、订阅托管与频道整理。下载客户端：https://mediaplayer.laokhome.cn"
 maintainer="laok"
