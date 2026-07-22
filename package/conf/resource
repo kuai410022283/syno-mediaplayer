@@ -1,12 +1,9 @@
 {
-    "webservice": {
-        "pkg_dir_prepare": [
+    "usr-share": {
+        "shares": [
             {
-                "source": "/var/packages/MediaPlayer/target",
-                "target": "MediaPlayer",
-                "user": "sc-MediaPlayer",
-                "group": "http",
-                "mode": "0755"
+                "name": "web_packages",
+                "subpath": "MediaPlayer"
             }
         ]
     }

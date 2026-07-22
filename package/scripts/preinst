@@ -18,4 +18,17 @@ if [ ${IS_USED} -eq 1 ]; then
     echo "Warning: Default port 9527 appears to be in use. You can specify a custom port in the installation wizard."
 fi
 
+# Prepare web_packages directory as root for DSM 7
+PACKAGE_NAME="MediaPlayer"
+PACKAGE_USER="sc-MediaPlayer"
+
+for vol in /volume* /var/services; do
+    if [ -d "${vol}/web_packages" ]; then
+        target="${vol}/web_packages/${PACKAGE_NAME}"
+        mkdir -p "${target}" 2>/dev/null || true
+        chown -R "${PACKAGE_USER}:http" "${target}" 2>/dev/null || true
+        chmod 775 "${target}" 2>/dev/null || true
+    fi
+done
+
 exit 0
