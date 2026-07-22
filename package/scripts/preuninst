@@ -1,10 +1,13 @@
 #!/bin/sh
 
-# Pre-uninstallation script for MediaPlayer
+# Pre-uninstallation script for MediaPlayer (DSM 7)
 
 PACKAGE_NAME="MediaPlayer"
 
 echo "Pre-uninstall: Stopping ${PACKAGE_NAME}..."
-/var/packages/${PACKAGE_NAME}/scripts/start-stop-status stop 2>/dev/null
+/var/packages/${PACKAGE_NAME}/scripts/start-stop-status stop 2>/dev/null || true
+
+# 强力兜底清理残余后台进程
+pkill -f "bin/mediaplayer" 2>/dev/null || killall mediaplayer 2>/dev/null || true
 
 exit 0
