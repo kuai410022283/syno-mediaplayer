@@ -1,7 +1,21 @@
 [
     {
-        "step_title": "MediaPlayer 服务基础设置",
+        "step_title": "MediaPlayer 服务与存储配置",
         "items": [
+            {
+                "type": "textfield",
+                "desc": "数据与配置文件存储路径",
+                "subitems": [
+                    {
+                        "key": "wizard_data_dir",
+                        "desc": "指定存储路径 (默认: /volume1/web_packages/MediaPlayer)",
+                        "defaultValue": "/volume1/web_packages/MediaPlayer",
+                        "validator": {
+                            "allowBlank": false
+                        }
+                    }
+                ]
+            },
             {
                 "type": "textfield",
                 "desc": "Web 管理面板端口",
