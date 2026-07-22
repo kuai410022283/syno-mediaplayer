@@ -5,27 +5,41 @@
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
 
-# DSM 7 标准：动态解析数据路径，确保决不会解析到系统 /var 根目录
+# 优先使用 File Station 中完全可见的 web_packages / web 共享目录
 get_data_dir() {
+    REAL_TARGET=$(readlink -f "${TARGET_DIR}" 2>/dev/null || realpath "${TARGET_DIR}" 2>/dev/null || echo "${SYNOPKG_PKGDEST:-}")
+    VOL_DIR=$(echo "${REAL_TARGET}" | awk -F'/' '{if ($2 ~ /^volume/) print "/"$2}')
+    [ -z "${VOL_DIR}" ] && VOL_DIR="/volume1"
+
+    if [ -d "${VOL_DIR}/web_packages" ]; then
+        TARGET_SHARE="${VOL_DIR}/web_packages/${PACKAGE_NAME}"
+        mkdir -p "${TARGET_SHARE}" 2>/dev/null || true
+        chmod 777 "${TARGET_SHARE}" 2>/dev/null || true
+        echo "${TARGET_SHARE}"
+        return 0
+    elif [ -d "/var/services/web_packages" ]; then
+        TARGET_SHARE="/var/services/web_packages/${PACKAGE_NAME}"
+        mkdir -p "${TARGET_SHARE}" 2>/dev/null || true
+        chmod 777 "${TARGET_SHARE}" 2>/dev/null || true
+        echo "${TARGET_SHARE}"
+        return 0
+    elif [ -d "${VOL_DIR}/web" ]; then
+        TARGET_SHARE="${VOL_DIR}/web/${PACKAGE_NAME}"
+        mkdir -p "${TARGET_SHARE}" 2>/dev/null || true
+        chmod 777 "${TARGET_SHARE}" 2>/dev/null || true
+        echo "${TARGET_SHARE}"
+        return 0
+    fi
+
     if [ -n "${SYNOPKG_SHARE_PATH}" ] && [ -d "${SYNOPKG_SHARE_PATH}" ]; then
         echo "${SYNOPKG_SHARE_PATH}"
         return 0
     fi
 
-    SYNO_SHARE_GET=$(synoshare --get "MediaPlayer" 2>/dev/null | grep -i "Path" | awk -F'[' '{print $2}' | tr -d ']')
+    SYNO_SHARE_GET=$(synoshare --get "${PACKAGE_NAME}" 2>/dev/null | grep -i "Path" | awk -F'[' '{print $2}' | tr -d ']')
     if [ -n "${SYNO_SHARE_GET}" ] && [ -d "${SYNO_SHARE_GET}" ]; then
         echo "${SYNO_SHARE_GET}"
         return 0
-    fi
-
-    REAL_TARGET=$(readlink -f "${TARGET_DIR}" 2>/dev/null || realpath "${TARGET_DIR}" 2>/dev/null || echo "${SYNOPKG_PKGDEST:-}")
-    VOL_DIR=$(echo "${REAL_TARGET}" | awk -F'/' '{if ($2 ~ /^volume/) print "/"$2}')
-    if [ -n "${VOL_DIR}" ] && [ -d "${VOL_DIR}" ]; then
-        TARGET_SHARE="${VOL_DIR}/MediaPlayer"
-        if mkdir -p "${TARGET_SHARE}" 2>/dev/null; then
-            echo "${TARGET_SHARE}"
-            return 0
-        fi
     fi
 
     echo "${SYNOPKG_PKGVAR:-/var/packages/${PACKAGE_NAME}/var}"
