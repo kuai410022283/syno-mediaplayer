@@ -5,15 +5,18 @@
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
 
-# 优先使用用户向导自定义/默认指定的存储路径或 web_packages
+# 优先使用用户向导自定义/默认指定的存储路径 (通过群晖官方 synogetkeyvalue 工具读取)
 get_data_dir() {
-    CUSTOM_DIR="${pkgwizard_data_dir}"
-    [ -z "${CUSTOM_DIR}" ] && CUSTOM_DIR="${wizard_data_dir}"
-    [ -z "${CUSTOM_DIR}" ] && CUSTOM_DIR="${pkgwizard_wizard_data_dir}"
+    SYNOGETKEY="/usr/syno/bin/synogetkeyvalue"
+    CUSTOM_DIR=""
 
-    if [ -z "${CUSTOM_DIR}" ] && [ -n "${SYNOPKG_TEMP_LOGFILE}" ] && [ -f "${SYNOPKG_TEMP_LOGFILE}" ]; then
-        CUSTOM_DIR=$(grep -E 'pkgwizard_data_dir|wizard_data_dir' "${SYNOPKG_TEMP_LOGFILE}" 2>/dev/null | head -n 1 | awk -F'=' '{print $2}' | tr -d '"\r\n')
+    if [ -n "${SYNOPKG_TEMP_LOGFILE}" ] && [ -f "${SYNOPKG_TEMP_LOGFILE}" ] && [ -x "${SYNOGETKEY}" ]; then
+        CUSTOM_DIR=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "pkgwizard_data_dir" 2>/dev/null)
+        [ -z "${CUSTOM_DIR}" ] && CUSTOM_DIR=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "wizard_data_dir" 2>/dev/null)
     fi
+
+    [ -z "${CUSTOM_DIR}" ] && CUSTOM_DIR="${pkgwizard_data_dir}"
+    [ -z "${CUSTOM_DIR}" ] && CUSTOM_DIR="${wizard_data_dir}"
 
     if [ -n "${CUSTOM_DIR}" ]; then
         if mkdir -p "${CUSTOM_DIR}" 2>/dev/null; then
