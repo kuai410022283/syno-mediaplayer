@@ -32,14 +32,31 @@ echo "========== MediaPlayer Post-Uninstall =========="
 
 # 检查向导传过来的 delete_data 环境变量
 if [ "${delete_data}" = "true" ]; then
-    echo "用户选择了彻底删除数据，开始清理共享文件夹: ${DATA_DIR}"
-    if [ -d "${DATA_DIR}" ]; then
-        # 仅清空内容，保留共享文件夹躯壳，避免打乱 DSM 的共享文件夹注册表
-        rm -rf "${DATA_DIR}"/*
-        echo "数据目录已彻底清空。"
-    else
-        echo "数据目录不存在，跳过清理。"
+    echo "用户选择了彻底删除数据，开始清理所有持久化数据与系统残留..."
+
+    # 1. 尝试使用 synoshare 注销共享文件夹注册表
+    if command -v synoshare >/dev/null 2>&1; then
+        synoshare --del "MediaPlayer" 2>/dev/null || true
+    elif [ -x "/usr/syno/bin/synoshare" ]; then
+        /usr/syno/bin/synoshare --del "MediaPlayer" 2>/dev/null || true
     fi
+
+    # 2. 彻底删除共享文件夹目录
+    if [ -n "${DATA_DIR}" ] && [ -d "${DATA_DIR}" ]; then
+        rm -rf "${DATA_DIR}" 2>/dev/null || true
+        echo "共享文件夹已彻底删除: ${DATA_DIR}"
+    fi
+
+    # 3. 清理系统卷下的 @appdata, @apphome, @appshare, @appconf, @apptemp, @eaDir 残留
+    rm -rf /volume*/@appdata/${PACKAGE_NAME} 2>/dev/null || true
+    rm -rf /volume*/@apphome/${PACKAGE_NAME} 2>/dev/null || true
+    rm -rf /volume*/@appshare/${PACKAGE_NAME} 2>/dev/null || true
+    rm -rf /volume*/@appconf/${PACKAGE_NAME} 2>/dev/null || true
+    rm -rf /volume*/@apptemp/${PACKAGE_NAME} 2>/dev/null || true
+    rm -rf /volume*/@eaDir/${PACKAGE_NAME} 2>/dev/null || true
+    rm -rf /var/packages/${PACKAGE_NAME} 2>/dev/null || true
+
+    echo "所有套件相关残留目录已彻底清空。"
 else
     echo "用户选择了保留数据，或未执行卸载向导。"
     echo "数据安全保存在共享文件夹: ${DATA_DIR}"
