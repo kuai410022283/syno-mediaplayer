@@ -110,10 +110,9 @@ start_process() {
     fi
 
     # 检查配置中是否还有相对路径，如果有则修复为绝对路径
-    if grep -q '"\./data/' "${CONFIG_FILE}" 2>/dev/null; then
+    if grep -q '\./data/' "${CONFIG_FILE}" 2>/dev/null; then
         log_msg "Fixing relative paths in config..."
-        sed -i "s|path: \"\./data/|path: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
-        sed -i "s|cache_dir: \"\./data/|cache_dir: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
+        sed -i "s|\./data/|${DATA_DIR}/data/|g" "${CONFIG_FILE}"
     fi
 
     log_msg "Exec: ${DAEMON}"

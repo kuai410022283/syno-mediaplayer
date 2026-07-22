@@ -59,7 +59,7 @@ else
     if [ -f "${TEMPLATE_FILE}" ]; then
         cp "${TEMPLATE_FILE}" "${TARGET_CONFIG}"
         sed -i -E "s/^[[:space:]]*port:.*$/  port: ${PORT}/" "${TARGET_CONFIG}"
-        sed -i "s|\"./data/|\"${DATA_DIR}/data/|g" "${TARGET_CONFIG}"
+        sed -i "s|\./data/|${DATA_DIR}/data/|g" "${TARGET_CONFIG}"
         sed -i "s|\"admin123\"|\"${ADMIN_PWD}\"|g" "${TARGET_CONFIG}"
         sed -i "s|\"mediaplayer-change-this-secret-key\"|\"${SECRET_KEY}\"|g" "${TARGET_CONFIG}"
     else

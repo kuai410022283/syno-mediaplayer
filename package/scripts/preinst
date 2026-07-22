@@ -2,18 +2,20 @@
 
 # Pre-installation script for MediaPlayer
 
-# Check if port 9527 is available
+# Check if default port 9527 is in use and output warning if detected
+IS_USED=0
 if command -v ss > /dev/null 2>&1; then
-    if ss -tlnp | grep -q ':9527 '; then
-        echo "Error: Port 9527 is already in use."
-        echo "Please stop the service using port 9527 first."
-        exit 1
+    if ss -tlnp 2>/dev/null | grep -q ':9527[[:space:]]'; then
+        IS_USED=1
     fi
 elif command -v netstat > /dev/null 2>&1; then
-    if netstat -tlnp | grep -q ':9527 '; then
-        echo "Error: Port 9527 is already in use."
-        exit 1
+    if netstat -tlnp 2>/dev/null | grep -q ':9527[[:space:]]'; then
+        IS_USED=1
     fi
+fi
+
+if [ ${IS_USED} -eq 1 ]; then
+    echo "Warning: Default port 9527 appears to be in use. You can specify a custom port in the installation wizard."
 fi
 
 exit 0

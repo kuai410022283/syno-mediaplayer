@@ -4,39 +4,75 @@
 
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
-DATA_DIR="${SYNOPKG_PKGVAR:-/var/packages/${PACKAGE_NAME}/var}"
 PACKAGE_USER="sc-MediaPlayer"
 
 echo "MediaPlayer 升级处理中..."
 
 chmod +x "${TARGET_DIR}/bin/mediaplayer" 2>/dev/null || true
+chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 
-# 兼容升级情况：动态识别数据路径
+# 兼容升级情况：动态识别数据路径（与 postinst / start-stop-status 对齐）
 if [ -n "${SYNOPKG_SHARE_PATH}" ] && [ -d "${SYNOPKG_SHARE_PATH}" ]; then
     DATA_DIR="${SYNOPKG_SHARE_PATH}"
 else
     SYNO_SHARE_GET=$(synoshare --get "MediaPlayer" 2>/dev/null | grep -i "Path" | awk -F'[' '{print $2}' | tr -d ']')
     if [ -n "${SYNO_SHARE_GET}" ] && [ -d "${SYNO_SHARE_GET}" ]; then
         DATA_DIR="${SYNO_SHARE_GET}"
+    else
+        PKG_VOL=$(echo "${SYNOPKG_PKGDEST}" | cut -d/ -f1,2)
+        DATA_DIR="${PKG_VOL}/MediaPlayer"
     fi
 fi
 
 echo "数据目录: ${DATA_DIR}"
 
+# 确保目标目录结构完整
 mkdir -p "${DATA_DIR}/data/cache"
+mkdir -p "${TARGET_DIR}/var"
 
-# 修复配置中的相对路径
-CONFIG_FILE="${DATA_DIR}/config.yaml"
-if [ -f "${CONFIG_FILE}" ]; then
-    if grep -q '"\./data/' "${CONFIG_FILE}" 2>/dev/null; then
-        sed -i "s|path: \"\./data/|path: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
-        sed -i "s|cache_dir: \"\./data/|cache_dir: \"${DATA_DIR}/data/|g" "${CONFIG_FILE}"
-        echo "配置路径已修复"
+# 1. 提取已有端口并更新 UI 配置与 DSM INFO
+TARGET_CONFIG="${DATA_DIR}/config.yaml"
+PORT="9527"
+if [ -f "${TARGET_CONFIG}" ]; then
+    EXISTING_PORT=$(grep '^[[:space:]]*port:' "${TARGET_CONFIG}" | awk '{print $2}' | tr -d '\r')
+    if [ -n "${EXISTING_PORT}" ]; then
+        PORT="${EXISTING_PORT}"
+        echo "提取到已有端口: ${PORT}"
     fi
 fi
 
-chown -R "${PACKAGE_USER}" "${DATA_DIR}"
-chmod -R 775 "${DATA_DIR}"
+# 修复配置中的相对路径（通用匹配带引号及不带引号的 ./data/）
+if [ -f "${TARGET_CONFIG}" ]; then
+    if grep -q '\./data/' "${TARGET_CONFIG}" 2>/dev/null; then
+        sed -i "s|\./data/|${DATA_DIR}/data/|g" "${TARGET_CONFIG}"
+        echo "配置路径已修复为绝对路径"
+    fi
+fi
+
+# 动态更新解压出的桌面快捷方式及跳转页面端口
+UI_CONFIG="${TARGET_DIR}/ui/config"
+if [ -f "${UI_CONFIG}" ]; then
+    sed -i "s|{{PORT}}|${PORT}|g" "${UI_CONFIG}" 2>/dev/null || true
+fi
+
+UI_INDEX="${TARGET_DIR}/ui/index.html"
+if [ -f "${UI_INDEX}" ]; then
+    sed -i "s|{{PORT}}|${PORT}|g" "${UI_INDEX}" 2>/dev/null || true
+fi
+
+# 动态更新 INFO 让套件中心升级后正常显示“打开”按钮及跳转链接
+INFO_FILE="/var/packages/${PACKAGE_NAME}/INFO"
+if [ -f "${INFO_FILE}" ]; then
+    sed -i -e '/^adminport=/d' -e '/^adminurl=/d' "${INFO_FILE}" 2>/dev/null || true
+    echo "adminurl=\"http://%s:${PORT}/admin\"" >> "${INFO_FILE}"
+fi
+
+# 2. 重新记录数据路径（供 start-stop-status 使用）
+echo "${DATA_DIR}" > "${TARGET_DIR}/var/data_path"
+
+# 3. 确保包用户及其组拥有数据目录所有权和权限
+chown -R "${PACKAGE_USER}" "${DATA_DIR}" 2>/dev/null || true
+chmod -R 775 "${DATA_DIR}" 2>/dev/null || true
 
 echo "MediaPlayer 升级完成！"
 exit 0

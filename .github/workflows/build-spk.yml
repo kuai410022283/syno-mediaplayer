@@ -35,10 +35,10 @@ jobs:
           - spk_arch: x86_64
             go_arch: amd64
             arch_family: x86_64
-          - spk_arch: x86_64
+          - spk_arch: aarch64
             go_arch: arm64
             arch_family: aarch64
-          - spk_arch: x86_64
+          - spk_arch: armv7l
             go_arch: arm-armv7l
             arch_family: armv7l
 
@@ -241,7 +241,7 @@ jobs:
           | Architecture | File | Synology Models |
           |---|---|---|
           | x86_64 | `MediaPlayer-x86_64-*.spk` | DS918+, DS920+, DS1522+, DS720+, DS923+, etc. |
-          | aarch64 | `MediaPlayer-aarch64-*.spk` | DS220+, DS723+, RS822+, etc. |
+          | aarch64 | `MediaPlayer-aarch64-*.spk` | DS220j, DS223, DS223j, DS420j, etc. |
           | armv7l | `MediaPlayer-armv7l-*.spk` | Older ARM models (DS216, etc.) |
 
           ### Installation

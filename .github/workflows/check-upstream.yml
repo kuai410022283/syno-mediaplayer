@@ -37,7 +37,23 @@ jobs:
           fi
 
           echo "Upstream latest: ${LATEST}"
-          echo "Always triggering build to ensure package is up-to-date."
+
+          # =========================================================================
+          # 【正式上线前可取消注释下方校验逻辑】
+          # 判断本仓库是否已经发布过该 Tag，避免每天重复编译与覆盖 Release。
+          # 调试阶段保持注释状态，以允许重新打包覆盖 Tag 产物。
+          # =========================================================================
+          # IS_RELEASED=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          #   "https://api.github.com/repos/${{ github.repository }}/releases/tags/${LATEST}" | \
+          #   python3 -c "import sys,json; print('yes' if json.load(sys.stdin).get('tag_name') else 'no')")
+          #
+          # if [ "${IS_RELEASED}" = "yes" ] && [ "${{ github.event_name }}" = "schedule" ]; then
+          #   echo "Release ${LATEST} already exists on this repository. Skipping build."
+          #   exit 0
+          # fi
+          # =========================================================================
+
+          echo "Triggering build for version: ${LATEST}"
           echo "version=${LATEST}" >> $GITHUB_OUTPUT
 
   build_spk:
