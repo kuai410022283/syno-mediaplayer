@@ -76,53 +76,56 @@ chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 mkdir -p "${DATA_DIR}/data/cache"
 mkdir -p "${SYNOPKG_PKGVAR}" 2>/dev/null || true
 
-# 3. 生成或保留配置文件（绝对路径）
+# 3. 提取向导输入的自定义端口与管理员密码，生成或更新配置文件
 TARGET_CONFIG="${DATA_DIR}/config.yaml"
+TEMPLATE_FILE="${TARGET_DIR}/etc/config.yaml.template"
+[ ! -f "${TEMPLATE_FILE}" ] && TEMPLATE_FILE="${TARGET_DIR}/etc/config.yaml"
 
-if [ -f "${TARGET_CONFIG}" ]; then
-    echo "发现已存在的配置文件，保留原有配置（升级模式）"
-    EXISTING_PORT=$(grep '^[[:space:]]*port:' "${TARGET_CONFIG}" | awk '{print $2}' | tr -d '\r')
-    if [ -n "${EXISTING_PORT}" ]; then
-        PORT="${EXISTING_PORT}"
-        echo "提取到已有端口: ${PORT}"
-    else
-        PORT="9527"
-    fi
-else
+SYNOGETKEY="/usr/syno/bin/synogetkeyvalue"
+
+WIZARD_PORT=""
+if [ -n "${SYNOPKG_TEMP_LOGFILE}" ] && [ -f "${SYNOPKG_TEMP_LOGFILE}" ] && [ -x "${SYNOGETKEY}" ]; then
+    WIZARD_PORT=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "pkgwizard_server_port" 2>/dev/null)
+    [ -z "${WIZARD_PORT}" ] && WIZARD_PORT=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "server_port" 2>/dev/null)
+fi
+[ -z "${WIZARD_PORT}" ] && WIZARD_PORT="${pkgwizard_server_port}"
+[ -z "${WIZARD_PORT}" ] && WIZARD_PORT="${server_port}"
+
+WIZARD_PWD=""
+if [ -n "${SYNOPKG_TEMP_LOGFILE}" ] && [ -f "${SYNOPKG_TEMP_LOGFILE}" ] && [ -x "${SYNOGETKEY}" ]; then
+    WIZARD_PWD=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "pkgwizard_admin_password" 2>/dev/null)
+    [ -z "${WIZARD_PWD}" ] && WIZARD_PWD=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "admin_password" 2>/dev/null)
+fi
+[ -z "${WIZARD_PWD}" ] && WIZARD_PWD="${pkgwizard_admin_password}"
+[ -z "${WIZARD_PWD}" ] && WIZARD_PWD="${admin_password}"
+
+if [ ! -f "${TARGET_CONFIG}" ]; then
     echo "全新安装，生成配置文件..."
-    SYNOGETKEY="/usr/syno/bin/synogetkeyvalue"
-    PORT=""
-    if [ -n "${SYNOPKG_TEMP_LOGFILE}" ] && [ -f "${SYNOPKG_TEMP_LOGFILE}" ] && [ -x "${SYNOGETKEY}" ]; then
-        PORT=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "pkgwizard_server_port" 2>/dev/null)
-        [ -z "${PORT}" ] && PORT=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "server_port" 2>/dev/null)
-    fi
-    [ -z "${PORT}" ] && PORT="${pkgwizard_server_port}"
-    [ -z "${PORT}" ] && PORT="${server_port}"
-    [ -z "${PORT}" ] && PORT="9527"
-
-    ADMIN_PWD=""
-    if [ -n "${SYNOPKG_TEMP_LOGFILE}" ] && [ -f "${SYNOPKG_TEMP_LOGFILE}" ] && [ -x "${SYNOGETKEY}" ]; then
-        ADMIN_PWD=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "pkgwizard_admin_password" 2>/dev/null)
-        [ -z "${ADMIN_PWD}" ] && ADMIN_PWD=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "admin_password" 2>/dev/null)
-    fi
-    [ -z "${ADMIN_PWD}" ] && ADMIN_PWD="${pkgwizard_admin_password}"
-    [ -z "${ADMIN_PWD}" ] && ADMIN_PWD="${admin_password}"
-    [ -z "${ADMIN_PWD}" ] && ADMIN_PWD="admin123"
-
-    SECRET_KEY=$(head -c 32 /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32 2>/dev/null)
-    if [ -z "${SECRET_KEY}" ]; then
-        SECRET_KEY="mediaplayer-fallback-$(date +%s)"
-    fi
-
     if [ -f "${TEMPLATE_FILE}" ]; then
         cp "${TEMPLATE_FILE}" "${TARGET_CONFIG}"
-        sed -i -E "s/^[[:space:]]*port:.*$/  port: ${PORT}/" "${TARGET_CONFIG}"
-        sed -i "s|\./data/|${DATA_DIR}/data/|g" "${TARGET_CONFIG}"
-        sed -i "s|\"admin123\"|\"${ADMIN_PWD}\"|g" "${TARGET_CONFIG}"
-        sed -i "s|\"mediaplayer-change-this-secret-key\"|\"${SECRET_KEY}\"|g" "${TARGET_CONFIG}"
-    else
-        echo "错误：未找到配置模板 (${TEMPLATE_FILE})"
     fi
+fi
+
+if [ -f "${TARGET_CONFIG}" ]; then
+    if [ -n "${WIZARD_PORT}" ]; then
+        PORT="${WIZARD_PORT}"
+        sed -i -E "s/^[[:space:]]*port:.*$/  port: ${PORT}/" "${TARGET_CONFIG}"
+        echo "配置端口已设定为向导值: ${PORT}"
+    else
+        PORT=$(grep '^[[:space:]]*port:' "${TARGET_CONFIG}" | awk '{print $2}' | tr -d '\r')
+        [ -z "${PORT}" ] && PORT="9527"
+    fi
+
+    if [ -n "${WIZARD_PWD}" ]; then
+        sed -i -E "s/^[[:space:]]*admin_password:.*$/  admin_password: \"${WIZARD_PWD}\"/" "${TARGET_CONFIG}"
+        echo "管理员密码已设定为向导设定值"
+    fi
+
+    SECRET_KEY=$(head -c 32 /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32 2>/dev/null)
+    [ -z "${SECRET_KEY}" ] && SECRET_KEY="mediaplayer-fallback-$(date +%s)"
+
+    sed -i "s|\./data/|${DATA_DIR}/data/|g" "${TARGET_CONFIG}"
+    sed -i "s|\"mediaplayer-change-this-secret-key\"|\"${SECRET_KEY}\"|g" "${TARGET_CONFIG}"
 fi
 
 # 动态更新桌面快捷方式的 URL 端口和重定向页面的端口
