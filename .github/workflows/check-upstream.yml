@@ -4,9 +4,15 @@ name: Check Upstream
 
 on:
   schedule:
-    # Daily at UTC 06:00 (14:00 Beijing Time)
-    - cron: '0 6 * * *'
+    # Every 6 hours (UTC 00:00, 06:00, 12:00, 18:00 / Beijing 08:00, 14:00, 20:00, 02:00)
+    - cron: '0 */6 * * *'
   workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force build even if release already exists'
+        required: false
+        type: boolean
+        default: false
 
 env:
   UPSTREAM_REPO: kuai410022283/mediaplayer
@@ -16,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.check.outputs.version }}
+      should_build: ${{ steps.check.outputs.should_build }}
     permissions:
       contents: write
       actions: write
@@ -38,26 +45,25 @@ jobs:
 
           echo "Upstream latest: ${LATEST}"
 
-          # =========================================================================
-          # 【正式上线前可取消注释下方校验逻辑】
-          # 判断本仓库是否已经发布过该 Tag，避免每天重复编译与覆盖 Release。
-          # 调试阶段保持注释状态，以允许重新打包覆盖 Tag 产物。
-          # =========================================================================
-          # IS_RELEASED=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          #   "https://api.github.com/repos/${{ github.repository }}/releases/tags/${LATEST}" | \
-          #   python3 -c "import sys,json; print('yes' if json.load(sys.stdin).get('tag_name') else 'no')")
-          #
-          # if [ "${IS_RELEASED}" = "yes" ] && [ "${{ github.event_name }}" = "schedule" ]; then
-          #   echo "Release ${LATEST} already exists on this repository. Skipping build."
-          #   exit 0
-          # fi
-          # =========================================================================
+          # Check if this repository already has a release for this tag
+          IS_RELEASED=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${LATEST}" | \
+            python3 -c "import sys,json; print('yes' if json.load(sys.stdin).get('tag_name') else 'no')")
 
-          echo "Triggering build for version: ${LATEST}"
-          echo "version=${LATEST}" >> $GITHUB_OUTPUT
+          FORCE="${{ inputs.force_build }}"
+
+          if [ "${IS_RELEASED}" = "yes" ] && [ "${FORCE}" != "true" ]; then
+            echo "Release ${LATEST} already exists on this repository. Skipping build."
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          else
+            echo "Triggering build for version: ${LATEST}"
+            echo "version=${LATEST}" >> $GITHUB_OUTPUT
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
 
   build_spk:
     needs: check
+    if: ${{ needs.check.outputs.should_build == 'true' }}
     uses: ./.github/workflows/build-spk.yml
     with:
       mediaplayer_version: ${{ needs.check.outputs.version }}
