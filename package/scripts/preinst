@@ -18,4 +18,23 @@ if [ ${IS_USED} -eq 1 ]; then
     echo "Warning: Default port 9527 appears to be in use. You can specify a custom port in the installation wizard."
 fi
 
+# Pre-create data directory as ROOT based on wizard input or default web_packages
+SYNOGETKEY="/usr/syno/bin/synogetkeyvalue"
+CUSTOM_DIR=""
+
+if [ -n "${SYNOPKG_TEMP_LOGFILE}" ] && [ -f "${SYNOPKG_TEMP_LOGFILE}" ] && [ -x "${SYNOGETKEY}" ]; then
+    CUSTOM_DIR=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "pkgwizard_data_dir" 2>/dev/null)
+    [ -z "${CUSTOM_DIR}" ] && CUSTOM_DIR=$("${SYNOGETKEY}" "${SYNOPKG_TEMP_LOGFILE}" "wizard_data_dir" 2>/dev/null)
+fi
+
+[ -z "${CUSTOM_DIR}" ] && CUSTOM_DIR="${pkgwizard_data_dir}"
+[ -z "${CUSTOM_DIR}" ] && CUSTOM_DIR="${wizard_data_dir}"
+[ -z "${CUSTOM_DIR}" ] && CUSTOM_DIR="/volume1/web_packages/MediaPlayer"
+
+if [ -n "${CUSTOM_DIR}" ]; then
+    mkdir -p "${CUSTOM_DIR}" 2>/dev/null || true
+    chown -R MediaPlayer:http "${CUSTOM_DIR}" 2>/dev/null || true
+    chmod 777 "${CUSTOM_DIR}" 2>/dev/null || true
+fi
+
 exit 0
