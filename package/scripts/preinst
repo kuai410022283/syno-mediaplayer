@@ -22,13 +22,16 @@ fi
 PACKAGE_NAME="MediaPlayer"
 PACKAGE_USER="sc-MediaPlayer"
 
-for vol in /volume* /var/services; do
-    if [ -d "${vol}/web_packages" ]; then
-        target="${vol}/web_packages/${PACKAGE_NAME}"
-        mkdir -p "${target}" 2>/dev/null || true
-        chown -R "${PACKAGE_USER}:http" "${target}" 2>/dev/null || true
-        chmod 775 "${target}" 2>/dev/null || true
-    fi
+for puser in "${PACKAGE_USER}" "${PACKAGE_NAME}"; do
+    for vol in /volume* /var/services; do
+        if [ -d "${vol}/web_packages" ]; then
+            /usr/syno/bin/synoacltool -add "${vol}/web_packages" "user:${puser}:allow:rwxpdDaARWcCo:fd--" 2>/dev/null || true
+            target="${vol}/web_packages/${PACKAGE_NAME}"
+            mkdir -p "${target}" 2>/dev/null || true
+            /usr/syno/bin/synoacltool -add "${target}" "user:${puser}:allow:rwxpdDaARWcCo:fd--" 2>/dev/null || true
+            chmod 777 "${target}" 2>/dev/null || true
+        fi
+    done
 done
 
 exit 0
