@@ -16,7 +16,7 @@ get_data_dir() {
     VOL_DIR=$(echo "${REAL_TARGET}" | awk -F'/' '{if ($2 ~ /^volume/) print "/"$2}')
     [ -z "${VOL_DIR}" ] && VOL_DIR="/volume1"
 
-    for candidate in "${VOL_DIR}/web_packages/${PACKAGE_NAME}" "/var/services/web_packages/${PACKAGE_NAME}" "${VOL_DIR}/web/${PACKAGE_NAME}"; do
+    for candidate in "${VOL_DIR}/web_packages/${PACKAGE_NAME}" "/var/services/web_packages/${PACKAGE_NAME}"; do
         if [ -d "${candidate}" ] || mkdir -p "${candidate}" 2>/dev/null; then
             chmod 777 "${candidate}" 2>/dev/null || true
             if touch "${candidate}/.test_write" 2>/dev/null; then

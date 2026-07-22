@@ -15,9 +15,6 @@ get_data_dir() {
     elif [ -d "/var/services/web_packages/${PACKAGE_NAME}" ]; then
         echo "/var/services/web_packages/${PACKAGE_NAME}"
         return 0
-    elif [ -d "${VOL_DIR}/web/${PACKAGE_NAME}" ]; then
-        echo "${VOL_DIR}/web/${PACKAGE_NAME}"
-        return 0
     fi
 
     if [ -n "${SYNOPKG_SHARE_PATH}" ] && [ -d "${SYNOPKG_SHARE_PATH}" ]; then
@@ -49,10 +46,9 @@ if [ "${uninstall_mode}" = "delete_data" ] || [ "${delete_data}" = "true" ] || [
         /usr/syno/bin/synoshare --del "${PACKAGE_NAME}" 2>/dev/null || true
     fi
 
-    # 2. 彻底删除共享目录中的套件文件夹 (web_packages / web / 独立共享文件夹)
+    # 2. 彻底删除共享目录中的套件文件夹 (web_packages / 独立共享文件夹)
     rm -rf /volume*/web_packages/${PACKAGE_NAME} 2>/dev/null || true
     rm -rf /var/services/web_packages/${PACKAGE_NAME} 2>/dev/null || true
-    rm -rf /volume*/web/${PACKAGE_NAME} 2>/dev/null || true
     rm -rf /volume*/${PACKAGE_NAME} 2>/dev/null || true
 
     if [ -n "${DATA_DIR}" ] && [ -d "${DATA_DIR}" ]; then
