@@ -21,25 +21,16 @@ get_data_dir() {
     VOL_DIR=$(echo "${REAL_TARGET}" | awk -F'/' '{if ($2 ~ /^volume/) print "/"$2}')
     [ -z "${VOL_DIR}" ] && VOL_DIR="/volume1"
 
-    if [ -d "${VOL_DIR}/web_packages" ]; then
-        TARGET_SHARE="${VOL_DIR}/web_packages/${PACKAGE_NAME}"
-        mkdir -p "${TARGET_SHARE}" 2>/dev/null || true
-        chmod 777 "${TARGET_SHARE}" 2>/dev/null || true
-        echo "${TARGET_SHARE}"
-        return 0
-    elif [ -d "/var/services/web_packages" ]; then
-        TARGET_SHARE="/var/services/web_packages/${PACKAGE_NAME}"
-        mkdir -p "${TARGET_SHARE}" 2>/dev/null || true
-        chmod 777 "${TARGET_SHARE}" 2>/dev/null || true
-        echo "${TARGET_SHARE}"
-        return 0
-    elif [ -d "${VOL_DIR}/web" ]; then
-        TARGET_SHARE="${VOL_DIR}/web/${PACKAGE_NAME}"
-        mkdir -p "${TARGET_SHARE}" 2>/dev/null || true
-        chmod 777 "${TARGET_SHARE}" 2>/dev/null || true
-        echo "${TARGET_SHARE}"
-        return 0
-    fi
+    for candidate in "${VOL_DIR}/web_packages/${PACKAGE_NAME}" "/var/services/web_packages/${PACKAGE_NAME}" "${VOL_DIR}/web/${PACKAGE_NAME}"; do
+        if [ -d "${candidate}" ] || mkdir -p "${candidate}" 2>/dev/null; then
+            chmod 777 "${candidate}" 2>/dev/null || true
+            if touch "${candidate}/.test_write" 2>/dev/null; then
+                rm -f "${candidate}/.test_write" 2>/dev/null || true
+                echo "${candidate}"
+                return 0
+            fi
+        fi
+    done
 
     if [ -n "${SYNOPKG_SHARE_PATH}" ] && [ -d "${SYNOPKG_SHARE_PATH}" ]; then
         echo "${SYNOPKG_SHARE_PATH}"
