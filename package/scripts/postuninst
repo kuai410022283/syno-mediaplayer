@@ -38,21 +38,25 @@ DATA_DIR=$(get_data_dir)
 
 echo "========== MediaPlayer Post-Uninstall =========="
 
-# 检查向导传过来的 delete_data 环境变量
-if [ "${delete_data}" = "true" ]; then
+# 检查向导传过来的 delete_data / keep_data 环境变量
+if [ "${delete_data}" = "true" ] || [ "${delete_data}" = "delete_data" ] || [ "${keep_data}" = "false" ]; then
     echo "用户选择了彻底删除数据，开始清理所有持久化数据与系统残留..."
 
     # 1. 尝试使用 synoshare 注销共享文件夹注册表
     if command -v synoshare >/dev/null 2>&1; then
-        synoshare --del "MediaPlayer" 2>/dev/null || true
+        synoshare --del "${PACKAGE_NAME}" 2>/dev/null || true
     elif [ -x "/usr/syno/bin/synoshare" ]; then
-        /usr/syno/bin/synoshare --del "MediaPlayer" 2>/dev/null || true
+        /usr/syno/bin/synoshare --del "${PACKAGE_NAME}" 2>/dev/null || true
     fi
 
-    # 2. 彻底删除共享文件夹目录
+    # 2. 彻底删除共享目录中的套件文件夹 (web_packages / web / 独立共享文件夹)
+    rm -rf /volume*/web_packages/${PACKAGE_NAME} 2>/dev/null || true
+    rm -rf /var/services/web_packages/${PACKAGE_NAME} 2>/dev/null || true
+    rm -rf /volume*/web/${PACKAGE_NAME} 2>/dev/null || true
+    rm -rf /volume*/${PACKAGE_NAME} 2>/dev/null || true
+
     if [ -n "${DATA_DIR}" ] && [ -d "${DATA_DIR}" ]; then
         rm -rf "${DATA_DIR}" 2>/dev/null || true
-        echo "共享文件夹已彻底删除: ${DATA_DIR}"
     fi
 
     # 3. 清理系统卷下的 @appdata, @apphome, @appshare, @appconf, @apptemp, @eaDir 残留
