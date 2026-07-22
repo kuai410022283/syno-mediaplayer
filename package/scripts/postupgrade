@@ -13,7 +13,6 @@ chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 
 # 优先使用 File Station 中完全可见的 web_packages / web 共享目录
 get_data_dir() {
-    # 1. 优先使用 DSM 官方 usr-share 资源赋予的共享路径 (web_packages/MediaPlayer)
     if [ -n "${SYNOPKG_SHARE_PATH}" ] && [ -d "${SYNOPKG_SHARE_PATH}" ]; then
         echo "${SYNOPKG_SHARE_PATH}"
         return 0
