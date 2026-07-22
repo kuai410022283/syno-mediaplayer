@@ -4,8 +4,18 @@
 # 卸载后执行，用于清理持久化数据（如果用户选择了彻底删除）
 
 PACKAGE_NAME="MediaPlayer"
-# 优先使用 File Station 中完全可见的 web_packages / web 共享目录
+# 优先使用已保存的 data_path (确保卸载时准确清理或保留用户的自定义存储路径)
 get_data_dir() {
+    for data_file in "${SYNOPKG_PKGVAR}/data_path" "${TARGET_DIR}/var/data_path"; do
+        if [ -f "${data_file}" ]; then
+            SAVED_DIR=$(cat "${data_file}" | tr -d '\r\n')
+            if [ -n "${SAVED_DIR}" ] && [ -d "${SAVED_DIR}" ]; then
+                echo "${SAVED_DIR}"
+                return 0
+            fi
+        fi
+    done
+
     VOL_DIR=$(echo "${SYNOPKG_PKGDEST:-}" | awk -F'/' '{if ($2 ~ /^volume/) print "/"$2}')
     [ -z "${VOL_DIR}" ] && VOL_DIR="/volume1"
 
@@ -19,12 +29,6 @@ get_data_dir() {
 
     if [ -n "${SYNOPKG_SHARE_PATH}" ] && [ -d "${SYNOPKG_SHARE_PATH}" ]; then
         echo "${SYNOPKG_SHARE_PATH}"
-        return 0
-    fi
-
-    SYNO_SHARE_GET=$(synoshare --get "${PACKAGE_NAME}" 2>/dev/null | grep -i "Path" | awk -F'[' '{print $2}' | tr -d ']')
-    if [ -n "${SYNO_SHARE_GET}" ] && [ -d "${SYNO_SHARE_GET}" ]; then
-        echo "${SYNO_SHARE_GET}"
         return 0
     fi
 

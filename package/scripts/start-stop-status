@@ -6,8 +6,19 @@ PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
 DAEMON="${TARGET_DIR}/bin/mediaplayer"
 
-# 优先使用 File Station 中完全可见的 web_packages 共享目录 (由 webservice pkg_dir_prepare 提供)
+# 优先使用已保存的路径、用户向导自定义/默认指定的存储路径或 web_packages
 get_data_dir() {
+    # 1. 优先使用已保存的 data_path (确保运行时读取用户选定的存储目录)
+    for data_file in "${SYNOPKG_PKGVAR}/data_path" "${TARGET_DIR}/var/data_path"; do
+        if [ -f "${data_file}" ]; then
+            SAVED_DIR=$(cat "${data_file}" | tr -d '\r\n')
+            if [ -n "${SAVED_DIR}" ] && [ -d "${SAVED_DIR}" ]; then
+                echo "${SAVED_DIR}"
+                return 0
+            fi
+        fi
+    done
+
     if [ -n "${SYNOPKG_SHARE_PATH}" ] && [ -d "${SYNOPKG_SHARE_PATH}" ]; then
         echo "${SYNOPKG_SHARE_PATH}"
         return 0
@@ -22,16 +33,6 @@ get_data_dir() {
             if touch "${candidate}/.test_write" 2>/dev/null; then
                 rm -f "${candidate}/.test_write" 2>/dev/null || true
                 echo "${candidate}"
-                return 0
-            fi
-        fi
-    done
-
-    for data_file in "${SYNOPKG_PKGVAR}/data_path" "${TARGET_DIR}/var/data_path"; do
-        if [ -f "${data_file}" ]; then
-            SAVED_DIR=$(cat "${data_file}" | tr -d '\r\n')
-            if [ -n "${SAVED_DIR}" ] && [ -d "${SAVED_DIR}" ]; then
-                echo "${SAVED_DIR}"
                 return 0
             fi
         fi
