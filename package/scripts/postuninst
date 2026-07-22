@@ -38,8 +38,8 @@ DATA_DIR=$(get_data_dir)
 
 echo "========== MediaPlayer Post-Uninstall =========="
 
-# 检查向导传过来的 delete_data / keep_data 环境变量
-if [ "${delete_data}" = "true" ] || [ "${delete_data}" = "delete_data" ] || [ "${keep_data}" = "false" ]; then
+# 检查向导传过来的 uninstall_mode / delete_data / keep_data 环境变量
+if [ "${uninstall_mode}" = "delete_data" ] || [ "${delete_data}" = "true" ] || [ "${delete_data}" = "delete_data" ] || [ "${keep_data}" = "false" ]; then
     echo "用户选择了彻底删除数据，开始清理所有持久化数据与系统残留..."
 
     # 1. 尝试使用 synoshare 注销共享文件夹注册表

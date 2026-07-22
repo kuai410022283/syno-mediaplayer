@@ -4,6 +4,7 @@
         "items": [
             {
                 "type": "singleselect",
+                "key": "uninstall_mode",
                 "desc": "请选择数据保留方式：",
                 "subitems": [
                     {
