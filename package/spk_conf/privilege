@@ -2,9 +2,6 @@
     "defaults": {
         "run-as": "package"
     },
-    "join-group": [
-        {
-            "group_name": "http"
-        }
-    ]
+    "username": "MediaPlayer",
+    "join-groupname": "http"
 }

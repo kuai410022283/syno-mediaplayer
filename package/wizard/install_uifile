@@ -1,6 +1,20 @@
 [
     {
-        "step_title": "MediaPlayer 安装配置",
+        "step_title": "存储共享文件夹设置",
+        "items": [
+            {
+                "type": "syndata_share",
+                "desc": "请选择数据与配置文件的存储共享文件夹 (推荐选择 web_packages):",
+                "subitems": [
+                    {
+                        "key": "wizard_share_path"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "step_title": "MediaPlayer 服务基础设置",
         "items": [
             {
                 "type": "textfield",
