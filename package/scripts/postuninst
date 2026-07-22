@@ -4,14 +4,29 @@
 # 卸载后执行，用于清理持久化数据（如果用户选择了彻底删除）
 
 PACKAGE_NAME="MediaPlayer"
-# 卸载时如果是 data-share 依然有 SYNOPKG_SHARE_PATH 变量
-if [ -n "${SYNOPKG_SHARE_PATH}" ]; then
-    DATA_DIR="${SYNOPKG_SHARE_PATH}"
-else
-    # 兜底：卸载时 target 已经被删除，不能用 realpath。使用系统提供的变量截取。
-    PKG_VOL=$(echo "${SYNOPKG_PKGDEST}" | cut -d/ -f1,2)
-    DATA_DIR="${PKG_VOL}/MediaPlayer"
-fi
+# 卸载时动态解析数据路径
+get_data_dir() {
+    if [ -n "${SYNOPKG_SHARE_PATH}" ] && [ -d "${SYNOPKG_SHARE_PATH}" ]; then
+        echo "${SYNOPKG_SHARE_PATH}"
+        return 0
+    fi
+
+    SYNO_SHARE_GET=$(synoshare --get "MediaPlayer" 2>/dev/null | grep -i "Path" | awk -F'[' '{print $2}' | tr -d ']')
+    if [ -n "${SYNO_SHARE_GET}" ] && [ -d "${SYNO_SHARE_GET}" ]; then
+        echo "${SYNO_SHARE_GET}"
+        return 0
+    fi
+
+    VOL_DIR=$(echo "${SYNOPKG_PKGDEST:-}" | awk -F'/' '{if ($2 ~ /^volume/) print "/"$2}')
+    if [ -n "${VOL_DIR}" ] && [ -d "${VOL_DIR}" ]; then
+        echo "${VOL_DIR}/MediaPlayer"
+        return 0
+    fi
+
+    echo "${SYNOPKG_PKGVAR:-/var/packages/${PACKAGE_NAME}/var}"
+}
+
+DATA_DIR=$(get_data_dir)
 
 echo "========== MediaPlayer Post-Uninstall =========="
 

@@ -5,21 +5,30 @@
 PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
 
-# DSM 7 标准环境变量
-# 1. 优先从 SYNOPKG_SHARE_PATH 获取共享文件夹路径
-# 2. 次选使用 synoshare 工具查询共享文件夹真实物理路径
-# 3. 兜底提取所在的 volume 拼接目录
-if [ -n "${SYNOPKG_SHARE_PATH}" ]; then
-    DATA_DIR="${SYNOPKG_SHARE_PATH}"
-else
+# DSM 7 标准：动态解析数据路径，确保决不会解析到系统 /var 根目录
+get_data_dir() {
+    if [ -n "${SYNOPKG_SHARE_PATH}" ] && [ -d "${SYNOPKG_SHARE_PATH}" ]; then
+        echo "${SYNOPKG_SHARE_PATH}"
+        return 0
+    fi
+
     SYNO_SHARE_GET=$(synoshare --get "MediaPlayer" 2>/dev/null | grep -i "Path" | awk -F'[' '{print $2}' | tr -d ']')
     if [ -n "${SYNO_SHARE_GET}" ] && [ -d "${SYNO_SHARE_GET}" ]; then
-        DATA_DIR="${SYNO_SHARE_GET}"
-    else
-        PKG_VOL=$(echo "${SYNOPKG_PKGDEST}" | cut -d/ -f1,2)
-        DATA_DIR="${PKG_VOL}/MediaPlayer"
+        echo "${SYNO_SHARE_GET}"
+        return 0
     fi
-fi
+
+    REAL_TARGET=$(readlink -f "${TARGET_DIR}" 2>/dev/null || realpath "${TARGET_DIR}" 2>/dev/null || echo "${SYNOPKG_PKGDEST:-}")
+    VOL_DIR=$(echo "${REAL_TARGET}" | awk -F'/' '{if ($2 ~ /^volume/) print "/"$2}')
+    if [ -n "${VOL_DIR}" ] && [ -d "${VOL_DIR}" ]; then
+        echo "${VOL_DIR}/MediaPlayer"
+        return 0
+    fi
+
+    echo "${SYNOPKG_PKGVAR:-/var/packages/${PACKAGE_NAME}/var}"
+}
+
+DATA_DIR=$(get_data_dir)
 PACKAGE_USER="sc-MediaPlayer"
 
 echo "开始安装 MediaPlayer..."
