@@ -57,6 +57,8 @@ get_data_dir() {
                 return 0
             fi
         fi
+    done
+
     echo "${SYNOPKG_PKGVAR:-/var/packages/${PACKAGE_NAME}/var}"
 }
 
