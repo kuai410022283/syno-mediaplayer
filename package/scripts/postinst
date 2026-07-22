@@ -6,14 +6,19 @@ PACKAGE_NAME="MediaPlayer"
 TARGET_DIR="/var/packages/${PACKAGE_NAME}/target"
 
 # DSM 7 标准环境变量
-# SYNOPKG_PKGVAR = /var/packages/<package>/var (系统隐藏的持久化数据目录)
-# DSM 7 标准环境变量中，如果是 data-share，则路径存在 SYNOPKG_SHARE_PATH 中
+# 1. 优先从 SYNOPKG_SHARE_PATH 获取共享文件夹路径
+# 2. 次选使用 synoshare 工具查询共享文件夹真实物理路径
+# 3. 兜底提取所在的 volume 拼接目录
 if [ -n "${SYNOPKG_SHARE_PATH}" ]; then
     DATA_DIR="${SYNOPKG_SHARE_PATH}"
 else
-    # 兜底：我们通过 target 的真实物理路径提取所在的 volume (如 /volume1)
-    PKG_VOL=$(echo "${SYNOPKG_PKGDEST}" | cut -d/ -f1,2)
-    DATA_DIR="${PKG_VOL}/MediaPlayer"
+    SYNO_SHARE_GET=$(synoshare --get "MediaPlayer" 2>/dev/null | grep -i "Path" | awk -F'[' '{print $2}' | tr -d ']')
+    if [ -n "${SYNO_SHARE_GET}" ] && [ -d "${SYNO_SHARE_GET}" ]; then
+        DATA_DIR="${SYNO_SHARE_GET}"
+    else
+        PKG_VOL=$(echo "${SYNOPKG_PKGDEST}" | cut -d/ -f1,2)
+        DATA_DIR="${PKG_VOL}/MediaPlayer"
+    fi
 fi
 PACKAGE_USER="sc-MediaPlayer"
 
@@ -25,13 +30,6 @@ echo "数据目录: ${DATA_DIR}"
 chmod +x "${TARGET_DIR}/bin/mediaplayer" 2>/dev/null || true
 chmod +x "${TARGET_DIR}/scripts/"* 2>/dev/null || true
 
-# 修复 DSM 7 data-share 默认不可见的问题
-# 为共享文件夹赋予 administrators 和 http 组完全控制/读写权限，并激活 Windows ACL 支持
-echo "设置共享文件夹权限..."
-synoacltool -add "${DATA_DIR}" "group:administrators:allow:rwxpdDaARWc--:fd--" 2>/dev/null || true
-synoacltool -add "${DATA_DIR}" "group:http:allow:rwxpdDaARWc--:fd--" 2>/dev/null || true
-synoshare --setrw "MediaPlayer" "administrators,http" 2>/dev/null || true
-
 # 2. 创建数据目录结构（共享文件夹内部路径）
 mkdir -p "${DATA_DIR}/data/cache"
 
@@ -40,7 +38,6 @@ TARGET_CONFIG="${DATA_DIR}/config.yaml"
 
 if [ -f "${TARGET_CONFIG}" ]; then
     echo "发现已存在的配置文件，保留原有配置（升级模式）"
-    # 尝试从现有配置文件中提取端口，以便更新桌面快捷方式
     EXISTING_PORT=$(grep '^[[:space:]]*port:' "${TARGET_CONFIG}" | awk '{print $2}' | tr -d '\r')
     if [ -n "${EXISTING_PORT}" ]; then
         PORT="${EXISTING_PORT}"
@@ -61,13 +58,8 @@ else
 
     if [ -f "${TEMPLATE_FILE}" ]; then
         cp "${TEMPLATE_FILE}" "${TARGET_CONFIG}"
-        # 替换端口
         sed -i -E "s/^[[:space:]]*port:.*$/  port: ${PORT}/" "${TARGET_CONFIG}"
-        
-        # 替换绝对路径
         sed -i "s|\"./data/|\"${DATA_DIR}/data/|g" "${TARGET_CONFIG}"
-        
-        # 替换密码和密钥
         sed -i "s|\"admin123\"|\"${ADMIN_PWD}\"|g" "${TARGET_CONFIG}"
         sed -i "s|\"mediaplayer-change-this-secret-key\"|\"${SECRET_KEY}\"|g" "${TARGET_CONFIG}"
     else
@@ -75,45 +67,35 @@ else
     fi
 fi
 
-    chown "${PACKAGE_USER}" "${TARGET_CONFIG}"
-    chmod 664 "${TARGET_CONFIG}"
+# 动态更新桌面快捷方式的 URL 端口和重定向页面的端口
+UI_CONFIG="${TARGET_DIR}/ui/config"
+if [ -f "${UI_CONFIG}" ]; then
+    sed -i "s|{{PORT}}|${PORT}|g" "${UI_CONFIG}"
+fi
 
-    echo "配置: ${TARGET_CONFIG}"
-    echo "端口: ${PORT}"
+UI_INDEX="${TARGET_DIR}/ui/index.html"
+if [ -f "${UI_INDEX}" ]; then
+    sed -i "s|{{PORT}}|${PORT}|g" "${UI_INDEX}"
+fi
 
-
-
-    # 动态更新桌面快捷方式的 URL 端口和重定向页面的端口
-    UI_CONFIG="${TARGET_DIR}/ui/config"
-    if [ -f "${UI_CONFIG}" ]; then
-        sed -i "s|{{PORT}}|${PORT}|g" "${UI_CONFIG}"
-    fi
-    
-    UI_INDEX="${TARGET_DIR}/ui/index.html"
-    if [ -f "${UI_INDEX}" ]; then
-        sed -i "s|{{PORT}}|${PORT}|g" "${UI_INDEX}"
-    fi
-
-    # 动态写入 INFO 让套件中心显示“打开”按钮
-    INFO_FILE="/var/packages/${PACKAGE_NAME}/INFO"
-    if [ -f "${INFO_FILE}" ]; then
-        sed -i -e '/^adminport=/d' -e '/^adminurl=/d' "${INFO_FILE}"
-        echo "adminurl=\"http://%s:${PORT}/admin\"" >> "${INFO_FILE}"
-    fi
-
+# 动态写入 INFO 让套件中心显示“打开”按钮
+INFO_FILE="/var/packages/${PACKAGE_NAME}/INFO"
+if [ -f "${INFO_FILE}" ]; then
+    sed -i -e '/^adminport=/d' -e '/^adminurl=/d' "${INFO_FILE}"
+    echo "adminurl=\"http://%s:${PORT}/admin\"" >> "${INFO_FILE}"
+fi
 
 # 4. 记录数据路径（供 start-stop-status 使用）
 echo "${DATA_DIR}" > "${TARGET_DIR}/var/data_path"
 
-# 5. 确保包用户拥有数据目录的写权限
-chown -R "${PACKAGE_USER}" "${DATA_DIR}"
-chmod -R 775 "${DATA_DIR}"
+# 5. 确保包用户及其组拥有数据目录所有权和权限
+chown -R "${PACKAGE_USER}" "${DATA_DIR}" 2>/dev/null || true
+chmod -R 775 "${DATA_DIR}" 2>/dev/null || true
 
 # 6. 校验
 echo "=== 校验 ==="
-ls -la "${DATA_DIR}/"
+ls -la "${DATA_DIR}/" 2>/dev/null || true
 ls -la "${DATA_DIR}/data/" 2>/dev/null || true
-ls -la "${DATA_DIR}/config/" 2>/dev/null || true
 
 echo "MediaPlayer 安装完成！"
 exit 0
